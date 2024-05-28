@@ -7,6 +7,8 @@ import {
   Route,
 } from "react-router-dom";
 import Home from "./pages";
+import About from "./pages/about";
+import Games from "./pages/games";
 import TicTacToe from "./pages/tictactoe";
  
 function App() {
@@ -15,6 +17,8 @@ function App() {
       <Navbar />
       <Routes>
         <Route exact path="/" element={<Home />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/games" element={<Games />} />
         <Route path="/tictactoe" element={<TicTacToe />} />
       </Routes>
     </Router>
