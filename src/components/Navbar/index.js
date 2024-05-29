@@ -6,17 +6,20 @@ const Navbar = () => {
         <>
             <Nav>
                 <NavMenu>
-                    <NavLink to="/" activeStyle>
+                    <NavLink to="/" activestyle="true">
                         Home
                     </NavLink>
-                    <NavLink to="/about" activeStyle>
+                    <NavLink to="/about" activestyle="true">
                         About
                     </NavLink>
-                    <NavLink to="/games" activeStyle>
+                    <NavLink to="/games" activestyle="true">
                         Games
                     </NavLink>
-                    <NavLink to="/tictactoe" activeStyle>
+                    <NavLink to="/tictactoe" activestyle="true">
                         TicTacToe
+                    </NavLink>
+                    <NavLink to="/pokedex" activestyle="true">
+                        Pokedex
                     </NavLink>
                 </NavMenu>
             </Nav>

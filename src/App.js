@@ -9,7 +9,8 @@ import {
 import Home from "./pages";
 import About from "./pages/about";
 import Games from "./pages/games";
-import TicTacToe from "./pages/tictactoe";
+import TicTacToe from "./pages/games/tictactoe";
+import Pokedex from "./pages/games/pokedex";
  
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/about" element={<About />} />
         <Route path="/games" element={<Games />} />
         <Route path="/tictactoe" element={<TicTacToe />} />
+        <Route path="/pokedex" element={<Pokedex />} />
       </Routes>
     </Router>
   );
