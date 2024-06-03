@@ -1,32 +1,52 @@
 import React from 'react';
 import './pokedex.css';
 
+const pokeColor = {
+    normal: '#facd4b',
+    fire: '#f0776a',
+    water: '#58abf6',
+    electric: '#facd4b',
+    grass: '#64dbb2',
+    ice: '#58abf6',
+    fighting: '#ca8179',
+    poison: '#9f5bba',
+    ground: '#ca8179',
+    flying: '#58abf6',
+    psychic: '#9f5bba',
+    bug: '#64dbb2',
+    rock: '#ca8179',
+    ghost: '#9f5bba',
+    dragon: '#f0776a',
+    dark: '#9f5bba',
+    steel: '#facd4b',
+    fairy: '#64dbb2'
+}
+
 class Pokemon extends React.Component {
     render() {
+        const types = this.props.pokeData.types.map((type, i) => {
+            return (
+                <div className='pokeSkill' key={i}>
+                    {type.type.name}
+                </div>
+            );
+        });
+        const backgroundColor = pokeColor[this.props.pokeData.types[0].type.name];
+
         return (
             <div id="pokemon">
-                { this.props.pokeData !== null ? 
-                    <div className='pokeType' style={{ backgroundColor: "#64dbb2" /*pokeColor[pokemon.name]*/ }}>
-                        <img className='pokeImage' src={this.props.pokeData.sprites.front_default} alt='pokemon' />
-                        <div className='pokeName'>
-                            {this.props.pokeData.name}
-                        </div>
-                        <div className='pokeOwned'>
-                            <div># <span>{this.props.pokeData.order}</span></div>
-                        </div>
-                        <div className='pokeTypes'>
-                            {
-                                this.props.pokeData.types.map((type, i) => {
-                                    return (
-                                        <div className='pokeSkill' key={i}>
-                                            {type.type.name}
-                                        </div>
-                                    )
-                                })
-                            }
-                        </div>
+                <div className='pokeType' style={{ backgroundColor: backgroundColor }}>
+                    <img className='pokeImage' src={this.props.pokeData.sprites.front_default} alt='pokemon' />
+                    <div className='pokeName'>
+                        {this.props.pokeData.name}
                     </div>
-                    : <p>Select a pokemon to see more info</p> }
+                    <div className='pokeOwned'>
+                        <div># <span>{this.props.pokeData.order}</span></div>
+                    </div>
+                    <div className='pokeTypes'>
+                        {types}
+                    </div>
+                </div>
             </div>
         )
     }
@@ -73,7 +93,6 @@ class Generation extends React.Component {
     }
 
     loadPokemon(pokeData) {
-        console.log(pokeData);
         this.setState({
             currPokeData: pokeData
         });
@@ -101,7 +120,7 @@ class Generation extends React.Component {
                 </div>
 
                 <div id="selected-pokemon">
-                    <Pokemon pokeData={this.state.currPokeData}/>
+                    { this.state.currPokeData !== null ? <Pokemon pokeData={this.state.currPokeData}/> : null }
                 </div>
             </div>
         );
