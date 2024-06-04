@@ -32,17 +32,22 @@ class Pokemon extends React.Component {
             );
         });
         const backgroundColor = pokeColor[this.props.pokeData.types[0].type.name];
+        console.log(this.props.pokeData);
 
         return (
             <div id="pokemon">
                 <div className='pokeType' style={{ backgroundColor: backgroundColor }}>
                     <img className='pokeImage' src={this.props.pokeData.sprites.front_default} alt='pokemon' />
-                    <div className='pokeName'>
-                        {this.props.pokeData.name}
+
+                    <div className="grouping">
+                        <div className='pokeName'>
+                            {this.props.pokeData.name}
+                        </div>
+                        <div className='pokeOwned'>
+                            <div># <span>{this.props.pokeData.id}</span></div>
+                        </div>
                     </div>
-                    <div className='pokeOwned'>
-                        <div># <span>{this.props.pokeData.order}</span></div>
-                    </div>
+
                     <div className='pokeTypes'>
                         {types}
                     </div>
@@ -115,12 +120,14 @@ class Generation extends React.Component {
             <div>
                 <h1>{this.props.genNum === 0 ? "All Pokemon" : "Generation " + this.props.genNum}</h1>
 
-                <div id="pokemon-list">
-                    {links}
-                </div>
+                <div className="grouping">
+                    <div id="pokemon-list">
+                        {links}
+                    </div>
 
-                <div id="selected-pokemon">
-                    { this.state.currPokeData !== null ? <Pokemon pokeData={this.state.currPokeData}/> : null }
+                    <div id="selected-pokemon">
+                        { this.state.currPokeData !== null ? <Pokemon pokeData={this.state.currPokeData}/> : null }
+                    </div>
                 </div>
             </div>
         );
