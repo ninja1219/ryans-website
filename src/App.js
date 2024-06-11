@@ -11,6 +11,7 @@ import About from "./pages/about";
 import Games from "./pages/games";
 import TicTacToe from "./pages/games/tictactoe";
 import Pokedex from "./pages/games/pokedex";
+import TodoList from "./pages/todolist";
  
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
       <Routes>
         <Route exact path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
+        <Route path="/todolist" element={<TodoList />} />
         <Route path="/games" element={<Games />} />
         <Route path="/tictactoe" element={<TicTacToe />} />
         <Route path="/pokedex" element={<Pokedex />} />
