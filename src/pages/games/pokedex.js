@@ -32,7 +32,7 @@ class Pokemon extends React.Component {
             );
         });
         const backgroundColor = pokeColor[this.props.pokeData.types[0].type.name];
-        console.log(this.props.pokeData);
+        //console.log(this.props.pokeData);
 
         return (
             <div id="pokemon">
@@ -40,17 +40,21 @@ class Pokemon extends React.Component {
                     <img className='pokeImage' src={this.props.pokeData.sprites.front_default} alt='pokemon' />
 
                     <div className="grouping">
-                        <div className='pokeName'>
-                            {this.props.pokeData.name}
-                        </div>
-                        <div className='pokeOwned'>
+                        { this.props.trivia ? null :
+                            <div className='pokeName'>
+                                {this.props.pokeData.name}
+                            </div>
+                        }
+                        <div className='pokeId'>
                             <div># <span>{this.props.pokeData.id}</span></div>
                         </div>
                     </div>
 
-                    <div className='pokeTypes'>
-                        {types}
-                    </div>
+                    { this.props.trivia ? null :
+                        <div className='pokeTypes'>
+                            {types}
+                        </div>
+                    }
                 </div>
             </div>
         )
@@ -62,7 +66,9 @@ class Generation extends React.Component {
         super(props);
         this.state = {
             pokemon: [],
-            currPokeData: null
+            currPokeData: null,
+            randomIndex: 0,
+            triviaGame: false
         };
     }
 
@@ -103,8 +109,29 @@ class Generation extends React.Component {
         });
     }
 
+    loadTriviaGame() {
+        const pokemonLen = this.state.pokemon.length;
+        this.setState({
+            randomIndex: Math.floor(Math.random() * pokemonLen),
+            triviaGame: true
+        });
+    }
+
+    nextTriviaQuestion() {
+        const pokemonLen = this.state.pokemon.length;
+        this.setState({
+            randomIndex: Math.floor(Math.random() * pokemonLen)
+        });
+    }
+
+    exitTriviaGame() {
+        this.setState({
+            triviaGame: false
+        });
+    }
+
     render() {
-        const { pokemon } = this.state;
+        const { pokemon, currPokeData, randomIndex, triviaGame } = this.state;
 
         const links = pokemon.map((pokeData) => {
             return (
@@ -120,15 +147,30 @@ class Generation extends React.Component {
             <div>
                 <h1>{this.props.genNum === 0 ? "All Pokemon" : "Generation " + this.props.genNum}</h1>
 
-                <div className="grouping">
-                    <div id="pokemon-list">
-                        {links}
-                    </div>
+                <button onClick={ () => this.loadTriviaGame() }>Trivia Game</button>
 
-                    <div id="selected-pokemon">
-                        { this.state.currPokeData !== null ? <Pokemon pokeData={this.state.currPokeData}/> : null }
-                    </div>
-                </div>
+                { triviaGame ?
+                    (
+                        <div id="trivia-game">
+                            <Pokemon pokeData={pokemon[randomIndex]} trivia={true}/>
+                            <textarea></textarea>
+                            <button onClick={ () => this.nextTriviaQuestion() }>Submit Answer</button>
+                            <button onClick={ () => this.exitTriviaGame() }>Exit Game</button>
+                            <h2>Correct!</h2>
+                        </div>
+                    ) :
+                    (
+                        <div className="grouping" id="pokedex-grouping">
+                            <div id="pokemon-list">
+                                {links}
+                            </div>
+
+                            <div id="selected-pokemon">
+                                { currPokeData !== null ? <Pokemon pokeData={currPokeData} trivia={false}/> : null }
+                            </div>
+                        </div>
+                    )
+                }
             </div>
         );
     }
