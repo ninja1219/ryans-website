@@ -35,9 +35,8 @@ $h6: 0.67em; */
   .pokeImage {
     position: absolute;
     float: right;
-    min-width: 300px;
-    margin-top: 3rem;
-    margin-left: 5rem;
+    min-width: 400px;
+    margin: 50px;
     transition: transform .7s ease-in-out;
   }
 
