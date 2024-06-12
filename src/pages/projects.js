@@ -10,6 +10,12 @@ function Projects() {
             <div>
                 <button onClick={() => { navigate("./todolist") }}>Todo List</button>
             </div>
+
+            <h2>Project Ideas: </h2>
+            <ul>
+                <li>Rubik's Cube Solver (optimized version)</li>
+                <li>Some project using chatGPT API or other APIs</li>
+            </ul>
         </div>
     );
 }
