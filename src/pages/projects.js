@@ -15,6 +15,7 @@ function Projects() {
             <ul>
                 <li>Rubik's Cube Solver (optimized version)</li>
                 <li>Some project using chatGPT API or other APIs</li>
+                <li>Cryptography project (maybe Enigma)</li>
             </ul>
         </div>
     );
