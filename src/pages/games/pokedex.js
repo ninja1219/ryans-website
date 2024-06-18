@@ -144,9 +144,11 @@ class Generation extends React.Component {
     }
 
     handleChange(event) {
-        this.setState({
-            triviaGuess: event.target.value.toLowerCase()
-        });
+        if (!this.state.showTriviaPokeName) {
+            this.setState({
+                triviaGuess: event.target.value.toLowerCase()
+            });
+        }
     }
 
     render() {
