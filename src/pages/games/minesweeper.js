@@ -52,7 +52,8 @@ class MineSweeper extends React.Component {
             numRows: 0,
             numCols: 0,
             numBombs: 0,
-            gameEnd: 0  // 0 = keep playing, 1 = win, 2 = lose
+            gameEnd: 0,  // 0 = keep playing, 1 = win, 2 = lose
+            flagBomb: false
         }
     }
     
@@ -63,16 +64,30 @@ class MineSweeper extends React.Component {
 
         let squares = this.state.squares.slice();
         let gameEnd = 0;
-        squares[i] = this.state.hiddenGrid[i];
-        if (squares[i] === '0') {
-            squares = this.populateSquares(squares, i);
+
+        if (squares[i] !== null) {
+            return;
         }
-        
-        if (squares[i] === 'X') {
-            gameEnd = 2;
+        else if (this.state.flagBomb) {
+            if (squares[i] === null) {
+                squares[i] = 'F';
+            }
+            else {
+                squares[i] = null;
+            }
         }
-        else if (this.findNumEmpty(squares) === this.state.numBombs) {
-            gameEnd = 1;
+        else {
+            squares[i] = this.state.hiddenGrid[i];
+            if (squares[i] === '0') {
+                squares = this.populateSquares(squares, i);
+            }
+            
+            if (squares[i] === 'X') {
+                gameEnd = 2;
+            }
+            else if (this.findNumEmpty(squares) === this.state.numBombs) {
+                gameEnd = 1;
+            }
         }
 
         this.setState({
@@ -179,7 +194,15 @@ class MineSweeper extends React.Component {
     resetGame() {
         this.setState({
             squares: null,
-            gameEnd: 0
+            gameEnd: 0,
+            flagBomb: false
+        });
+    }
+
+    setMarkingMode() {
+        const flagBomb = this.state.flagBomb;
+        this.setState({
+            flagBomb: !flagBomb
         });
     }
     
@@ -188,6 +211,7 @@ class MineSweeper extends React.Component {
         const numRows = this.state.numRows;
         const numCols = this.state.numCols;
         const gameEnd = this.state.gameEnd;
+        const flagBomb = this.state.flagBomb;
     
         return (
             <div className="minesweeper" style={{"margin-top": "10px"}}>
@@ -202,13 +226,18 @@ class MineSweeper extends React.Component {
                         <button onClick={() => this.setGrid(1)}>Medium</button>
                         <button onClick={() => this.setGrid(2)}>Hard</button>
                     </div>
-                    : <div className="game-board">
-                        <Board 
-                            squares={squares}
-                            numRows={numRows}
-                            numCols={numCols}
-                            onClick={i => this.handleClick(i)}
-                        />
+                    : <div style={{"display": "flex", "align-items": "center"}}>
+                        <div className="game-board">
+                            <Board 
+                                squares={squares}
+                                numRows={numRows}
+                                numCols={numCols}
+                                onClick={i => this.handleClick(i)}
+                            />
+                        </div>
+                        <div style={{"margin-left": "10px"}}>
+                            <button onClick={() => this.setMarkingMode()}>{ flagBomb ? "Continue" : "Flag a Bomb" }</button>
+                        </div>
                     </div>
                 }
 
