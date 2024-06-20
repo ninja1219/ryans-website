@@ -47,27 +47,48 @@ class MineSweeper extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            squares: Array(225).fill(null),
-            hiddenGrid: Array(225).fill("0"),
-            numRows: 15,
-            numCols: 15,
-            numBombs: 30
+            squares: null,
+            hiddenGrid: null,
+            numRows: 0,
+            numCols: 0,
+            numBombs: 0,
+            gameEnd: 0  // 0 = keep playing, 1 = win, 2 = lose
         }
-    }
-
-    componentDidMount() {
-        this.setGrid();
     }
     
     handleClick(i) {
+        if (this.state.gameEnd !== 0) {
+            return;
+        }
+
         let squares = this.state.squares.slice();
+        let gameEnd = 0;
         squares[i] = this.state.hiddenGrid[i];
         if (squares[i] === '0') {
             squares = this.populateSquares(squares, i);
         }
+        
+        if (squares[i] === 'X') {
+            gameEnd = 2;
+        }
+        else if (this.findNumEmpty(squares) === this.state.numBombs) {
+            gameEnd = 1;
+        }
+
         this.setState({
-            squares: squares
+            squares: squares,
+            gameEnd: gameEnd
         });
+    }
+
+    findNumEmpty(squares) {
+        let numEmpty = 0;
+        for (let i = 0; i < this.state.numRows*this.state.numCols; i++) {
+            if (squares[i] === null) {
+                numEmpty++;
+            }
+        }
+        return numEmpty;
     }
 
     populateSquares(squares, i) {
@@ -103,11 +124,32 @@ class MineSweeper extends React.Component {
         return squares;
     }
 
-    setGrid() {
-        const numSquares = this.state.numRows*this.state.numCols;
+    setGrid(level) {
+        let numRows, numCols, numBombs;
+        if (level === 0) {
+            numRows = 10;
+            numCols = 10;
+            numBombs = 10;
+        }
+        else if (level === 1) {
+            numRows = 15;
+            numCols = 15;
+            numBombs = 30;
+        } else if (level === 2) {
+            numRows = 20;
+            numCols = 20;
+            numBombs = 70;
+        }
+        else {
+            numRows = 15;
+            numCols = 15;
+            numBombs = 30;
+        }
+
+        const numSquares = numRows*numCols;
         let grid = Array(numSquares).fill('0');
 
-        for (let i = 0; i < this.state.numBombs; i++) {
+        for (let i = 0; i < numBombs; i++) {
             let randNum = Math.floor(Math.random()*numSquares);
             while (grid[randNum] !== '0') {
                 randNum = Math.floor(Math.random()*numSquares);
@@ -121,13 +163,23 @@ class MineSweeper extends React.Component {
                 continue;
             }
 
-            const currNumBombs = findNumBombs(grid, i, this.state.numRows, this.state.numCols);
+            const currNumBombs = findNumBombs(grid, i, numRows, numCols);
             grid[i] = currNumBombs.toString();
         }
 
         this.setState({
             squares: Array(numSquares).fill(null),
-            hiddenGrid: grid
+            hiddenGrid: grid,
+            numRows: numRows,
+            numCols: numCols,
+            numBombs: numBombs
+        });
+    }
+
+    resetGame() {
+        this.setState({
+            squares: null,
+            gameEnd: 0
         });
     }
     
@@ -135,19 +187,36 @@ class MineSweeper extends React.Component {
         const squares = this.state.squares;
         const numRows = this.state.numRows;
         const numCols = this.state.numCols;
+        const gameEnd = this.state.gameEnd;
     
         return (
             <div className="minesweeper" style={{"margin-top": "10px"}}>
-                <div className="game-board">
-                    <Board 
-                        squares={squares}
-                        numRows={numRows}
-                        numCols={numCols}
-                        onClick={i => this.handleClick(i)}
-                    />
-                </div>
+                <h1>MineSweeper</h1>
+                {
+                    gameEnd === 0 ? null : (gameEnd === 1 ? <h3>You Won!</h3> : <h3>You lost</h3>)
+                }
+                { 
+                    squares === null
+                    ? <div>
+                        <button onClick={() => this.setGrid(0)}>Easy</button>
+                        <button onClick={() => this.setGrid(1)}>Medium</button>
+                        <button onClick={() => this.setGrid(2)}>Hard</button>
+                    </div>
+                    : <div className="game-board">
+                        <Board 
+                            squares={squares}
+                            numRows={numRows}
+                            numCols={numCols}
+                            onClick={i => this.handleClick(i)}
+                        />
+                    </div>
+                }
 
-                <button style={{"margin-top": "10px"}} onClick={() => this.setGrid()}>Start New Game</button>
+                {
+                    squares === null ?
+                    null :
+                    <button style={{"margin-top": "10px"}} onClick={() => this.resetGame()}>Start New Game</button>
+                }
             </div>
         );
     }
