@@ -65,7 +65,7 @@ class MineSweeper extends React.Component {
         let squares = this.state.squares.slice();
         let gameEnd = 0;
 
-        if (squares[i] !== null) {
+        if (squares[i] !== null && !this.state.flagBomb) {
             return;
         }
         else if (this.state.flagBomb) {
@@ -99,7 +99,7 @@ class MineSweeper extends React.Component {
     findNumEmpty(squares) {
         let numEmpty = 0;
         for (let i = 0; i < this.state.numRows*this.state.numCols; i++) {
-            if (squares[i] === null) {
+            if (squares[i] === null || (squares[i] === 'F' && this.state.hiddenGrid[i] === 'X')) {
                 numEmpty++;
             }
         }
