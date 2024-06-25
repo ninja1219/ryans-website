@@ -10,7 +10,7 @@ import Home from "./pages";
 import About from "./pages/about";
 import Games from "./pages/games";
 import TicTacToe from "./pages/games/tictactoe";
-import Pokedex from "./pages/games/pokedex";
+import Pokedex from "./pages/games/pokemon/pokedex";
 import Projects from "./pages/projects";
 import TodoList from "./pages/projects/todolist";
 import MineSweeper from "./pages/games/minesweeper"

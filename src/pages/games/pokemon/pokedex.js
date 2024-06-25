@@ -1,63 +1,7 @@
 import React from 'react';
 import './pokedex.css';
-
-const pokeColor = {
-    normal: '#facd4b',
-    fire: '#f0776a',
-    water: '#58abf6',
-    electric: '#facd4b',
-    grass: '#64dbb2',
-    ice: '#58abf6',
-    fighting: '#ca8179',
-    poison: '#9f5bba',
-    ground: '#ca8179',
-    flying: '#58abf6',
-    psychic: '#9f5bba',
-    bug: '#64dbb2',
-    rock: '#ca8179',
-    ghost: '#9f5bba',
-    dragon: '#f0776a',
-    dark: '#9f5bba',
-    steel: '#facd4b',
-    fairy: '#64dbb2'
-}
-
-class Pokemon extends React.Component {
-    render() {
-        const types = this.props.pokeData.types.map((type, i) => {
-            return (
-                <div className='pokeSkill' key={i}>
-                    {type.type.name}
-                </div>
-            );
-        });
-        const backgroundColor = pokeColor[this.props.pokeData.types[0].type.name];
-        //console.log(this.props.pokeData);
-
-        return (
-            <div id="pokemon">
-                <div className='pokeType' style={{ backgroundColor: backgroundColor }}>
-                    <img className='pokeImage' src={this.props.pokeData.sprites.front_default} alt='pokemon' />
-
-                    <div className="grouping">
-                        { this.props.trivia ? null :
-                            <div className='pokeName'>
-                                {this.props.pokeData.name}
-                            </div>
-                        }
-                        <div className='pokeId'>
-                            <div># <span>{this.props.pokeData.id}</span></div>
-                        </div>
-                    </div>
-
-                    <div className='pokeTypes'>
-                        {types}
-                    </div>
-                </div>
-            </div>
-        )
-    }
-}
+import PokemonGame from "./pokemonGame";
+import Pokemon from "./pokemon";
 
 class Generation extends React.Component {
     constructor(props) {
@@ -68,7 +12,8 @@ class Generation extends React.Component {
             randomIndex: 0,
             triviaGame: false,
             triviaGuess: "",
-            showTriviaPokeName: false
+            showTriviaPokeName: false,
+            pokemonGame: false
         };
 
         this.handleChange = this.handleChange.bind(this);
@@ -137,9 +82,10 @@ class Generation extends React.Component {
         });
     }
 
-    exitTriviaGame() {
+    exitGame() {
         this.setState({
-            triviaGame: false
+            triviaGame: false,
+            pokemonGame: false
         });
     }
 
@@ -151,8 +97,14 @@ class Generation extends React.Component {
         }
     }
 
+    loadPokemonGame() {
+        this.setState({
+            pokemonGame: true
+        });
+    }
+
     render() {
-        const { pokemon, currPokeData, randomIndex, triviaGame, triviaGuess, showTriviaPokeName } = this.state;
+        const { pokemon, currPokeData, randomIndex, triviaGame, triviaGuess, showTriviaPokeName, pokemonGame } = this.state;
 
         const links = pokemon.map((pokeData) => {
             return (
@@ -181,7 +133,7 @@ class Generation extends React.Component {
                                 />
                                 <button onClick={ () => this.nextTriviaQuestion() }>Next</button>
                                 <button onClick={ () => this.showName(pokemon[randomIndex].name) }>Give Up</button>
-                                <button onClick={ () => this.exitTriviaGame() }>Exit Game</button>
+                                <button onClick={ () => this.exitGame() }>Exit Game</button>
                                 {
                                     triviaGuess === pokemon[randomIndex].name ? 
                                     <h2>Correct!</h2> :
@@ -190,19 +142,28 @@ class Generation extends React.Component {
                             </div>
                         </div>
                     ) :
-                    (
-                        <div>
-                            <button onClick={ () => this.loadTriviaGame() } style={{"margin-bottom": "20px"}}>Trivia Game</button>
-                            <div className="grouping" id="pokedex-grouping">
-                                <div id="pokemon-list">
-                                    {links}
-                                </div>
+                    ( pokemonGame ?
+                        (
+                            <div>
+                                <button onClick={ () => this.exitGame() }>Exit Game</button>
+                                <PokemonGame pokemon={pokemon} genNum={this.props.genNum}/>
+                            </div>
+                        ) :
+                        (
+                            <div>
+                                <button onClick={ () => this.loadTriviaGame() } style={{"margin-bottom": "20px"}}>Trivia Game</button>
+                                <button onClick={ () => this.loadPokemonGame() } style={{"margin-bottom": "20px"}}>Pokemon Game</button>
+                                <div className="grouping" id="pokedex-grouping">
+                                    <div id="pokemon-list">
+                                        {links}
+                                    </div>
 
-                                <div id="selected-pokemon">
-                                    { currPokeData !== null ? <Pokemon pokeData={currPokeData} trivia={false}/> : null }
+                                    <div id="selected-pokemon">
+                                        { currPokeData !== null ? <Pokemon pokeData={currPokeData} trivia={false}/> : null }
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )
                     )
                 }
             </div>
