@@ -6,6 +6,19 @@ import Pokemon from "./pokemon";
 // player: h: 0 to 1025, v: 0 to 400
 // pokemon h: 0 to 1025, v: -100 to 315
 
+// TODO:
+//    - Fix evolution issues with pokemon that can evolve but aren't
+//    - Sort all pokemon in pokedex when pokemon outside generation are added from evolutions
+//    - Implement gym battles (moves, strength (based on number of the pokemon caught), gym pokemon, etc.)
+//        - Must fight next gym if playerExp is so high (like maybe eery 30-40)
+//    - Update rules to match what is going on
+//    - Make sure evolution and playerExp is working good
+// - Maybes:
+//    - I could have wild pokemon move around randomly
+//    - I could add items (pokeballs, berries, potions, evolution stones, etc.), but this isn't necessary
+//    - I could have trainers pop up randomly as well
+//    - I could have multiple pokemon pop up at once
+
 async function fetchPokemonSpecies(pokemonName) {
     const response = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${pokemonName}/`);
     const data = await response.json();
@@ -75,8 +88,16 @@ class PokemonGame extends React.Component {
             pokeMap.set(pokemon.id, pokemon);
         }
 
+        let playerExp = 50;
+        if (this.props.genNum === 5) {
+            playerExp = 56;
+        }
+        else if (this.props.genNum === 0) {
+            playerExp = 40;
+        }
+
         this.state = {
-            playerExp: 60,
+            playerExp: playerExp,
             starter: null,
             sceneNumber: 0,
             gymNum: 0,
@@ -176,11 +197,11 @@ class PokemonGame extends React.Component {
 
         // Check if pokemon evolves
         let playerExpToAdd = 0.5
-        if (newCaughtPokemonMap.get(currPokemon.id) >= 10) {
+        if (newCaughtPokemonMap.get(currPokemon.id) >= 6) {
             const nextEvolution = await getPokemonEvolution(currPokemon.name);
 
             if (nextEvolution !== null) {
-                playerExpToAdd = 2;
+                playerExpToAdd = 3;
                 if (!newCaughtPokemonMap.has(nextEvolution.id)) {
                     newCaughtPokemonMap.set(nextEvolution.id, 0);
                     newPokemonMap.set(nextEvolution.id, nextEvolution);
