@@ -6,10 +6,75 @@ import Pokemon from "./pokemon";
 // player: h: 0 to 1025, v: 0 to 400
 // pokemon h: 0 to 1025, v: -100 to 315
 
+async function fetchPokemonSpecies(pokemonName) {
+    const response = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${pokemonName}/`);
+    const data = await response.json();
+    return data;
+}
+
+async function fetchEvolutionChain(evolutionChainUrl) {
+    const response = await fetch(evolutionChainUrl);
+    const data = await response.json();
+    return data;
+}
+
+function extractEvolutions(evolutionChain) {
+    let evolutions = [];
+    let currentEvolution = evolutionChain.chain;
+
+    do {
+        let species = currentEvolution.species;
+        evolutions.push({
+            name: species.name,
+            url: species.url
+        });
+
+        currentEvolution = currentEvolution.evolves_to[0];
+    } while (currentEvolution);
+
+    return evolutions;
+}
+
+async function getPokemonEvolution(pokemonName) {
+    try {
+        const speciesData = await fetchPokemonSpecies(pokemonName);
+        const evolutionChainUrl = speciesData.evolution_chain.url;
+        const evolutionChainData = await fetchEvolutionChain(evolutionChainUrl);
+        const evolutions = extractEvolutions(evolutionChainData);
+
+        // Fetch the IDs of the evolutions
+        let nextIsEvolution = false;
+        for (let evolution of evolutions) {
+            if (nextIsEvolution) {
+                const pokemonData = await fetch(`https://pokeapi.co/api/v2/pokemon/${evolution.name}/`);
+                const pokemonInfo = await pokemonData.json();
+                return pokemonInfo;
+            }
+            else if (evolution.name === pokemonName) {
+                nextIsEvolution = true;
+            }
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error fetching evolution data:', error);
+        return null;
+    }
+}
+
 class PokemonGame extends React.Component {
     constructor(props) {
         super(props);
+
         this.handleKeyDown = this.handleKeyDown.bind(this);
+
+        let caughtMap = new Map();
+        let pokeMap = new Map();
+        for (const pokemon of this.props.pokemon) {
+            caughtMap.set(pokemon.id, 0);
+            pokeMap.set(pokemon.id, pokemon);
+        }
+
         this.state = {
             playerExp: 60,
             starter: null,
@@ -20,43 +85,16 @@ class PokemonGame extends React.Component {
             randPokeIndex: -1,
             randTopPos: 0,
             randLeftPos: 0,
-            caughtPokemon: []  // TODO: Store in a map instead of id to # caught
+            caughtPokemon: caughtMap,  // pokemon id to # caught
+            pokemonMap: pokeMap,  // pokemon id to pokemon data
+            lastCaughtPokemon: null,
+            lastEvolvedPokemon: null
         }
     }
 
-    handleKeyDown(e) {
-        const currTopPos = this.state.playerTopPos;
-        const currLeftPos = this.state.playerLeftPos;
-
+    handleKeyDown(event) {
         // Update player position
-        if (e.keyCode === 37) { // Left
-            if (currLeftPos >= 20) {
-                this.setState({
-                    playerLeftPos: currLeftPos-20
-                });
-            }
-        }
-        else if (e.keyCode === 38) {  // Up
-            if (currTopPos >= 20) {
-                this.setState({
-                    playerTopPos: currTopPos-20
-                });
-            }
-        }
-        else if (e.keyCode === 39) {  // Right
-            if (currLeftPos <= 1005) {
-                this.setState({
-                    playerLeftPos: currLeftPos+20
-                });
-            }
-        }
-        else if (e.keyCode === 40) {  // Down
-            if (currTopPos <= 380) {
-                this.setState({
-                    playerTopPos: currTopPos+20
-                });
-            }
-        }
+        this.updatePlayerPosition(event);
 
         // Check if player caught pokemon
         const pokemon = this.filterPokemon();
@@ -64,14 +102,7 @@ class PokemonGame extends React.Component {
             const playerPos = document.getElementById("wildPokemon").getBoundingClientRect();
             const pokemonPos = document.getElementById("player").getBoundingClientRect();
             if (playerPos.right > pokemonPos.left && playerPos.left < pokemonPos.right && playerPos.top < pokemonPos.bottom && playerPos.bottom > pokemonPos.top) {
-                const currCaughtPokemon = this.state.caughtPokemon;
-                const currPokemon = pokemon[this.state.randPokeIndex];
-                const currPlayerExp = this.state.playerExp;
-                this.setState({
-                    playerExp: currPlayerExp + (currCaughtPokemon.length % 2 === 0 ? 1 : 0),
-                    randPokeIndex: -1,
-                    caughtPokemon: currCaughtPokemon.concat(currPokemon)
-                });
+                this.updateCaughtPokemon(pokemon);
             }
         }
 
@@ -87,12 +118,89 @@ class PokemonGame extends React.Component {
         }
     }
 
+    updatePlayerPosition(event) {
+        const currTopPos = this.state.playerTopPos;
+        const currLeftPos = this.state.playerLeftPos;
+
+        if (event.keyCode === 37) { // Left
+            if (currLeftPos >= 20) {
+                this.setState({
+                    playerLeftPos: currLeftPos-20
+                });
+            }
+        }
+        else if (event.keyCode === 38) {  // Up
+            if (currTopPos >= 20) {
+                this.setState({
+                    playerTopPos: currTopPos-20
+                });
+            }
+        }
+        else if (event.keyCode === 39) {  // Right
+            if (currLeftPos <= 1005) {
+                this.setState({
+                    playerLeftPos: currLeftPos+20
+                });
+            }
+        }
+        else if (event.keyCode === 40) {  // Down
+            if (currTopPos <= 380) {
+                this.setState({
+                    playerTopPos: currTopPos+20
+                });
+            }
+        }
+    }
+
     setStarter(starter) {
+        // Set up caughtPokemon map
+        let caughtMap = new Map(this.state.caughtPokemon);
+        caughtMap.set(starter.id, caughtMap.get(starter.id)+1);
+
         this.setState({
             starter: starter,
-            caughtPokemon: [starter]
+            caughtPokemon: caughtMap
         });
         this.incrementScene(1);
+    }
+
+    async updateCaughtPokemon(pokemon) {
+        const currPokemon = pokemon[this.state.randPokeIndex];
+        const currPlayerExp = this.state.playerExp;
+        const currCaughtPokemonMap = this.state.caughtPokemon;
+        const currPokemonMap = this.state.pokemonMap;
+
+        let newCaughtPokemonMap = new Map(currCaughtPokemonMap);
+        newCaughtPokemonMap.set(currPokemon.id, currCaughtPokemonMap.get(currPokemon.id)+1);
+        let newPokemonMap = new Map(currPokemonMap);
+
+        // Check if pokemon evolves
+        let playerExpToAdd = 0.5
+        if (newCaughtPokemonMap.get(currPokemon.id) >= 10) {
+            const nextEvolution = await getPokemonEvolution(currPokemon.name);
+
+            if (nextEvolution !== null) {
+                playerExpToAdd = 2;
+                if (!newCaughtPokemonMap.has(nextEvolution.id)) {
+                    newCaughtPokemonMap.set(nextEvolution.id, 0);
+                    newPokemonMap.set(nextEvolution.id, nextEvolution);
+                }
+                newCaughtPokemonMap.set(nextEvolution.id, newCaughtPokemonMap.get(nextEvolution.id)+1);
+                newCaughtPokemonMap.set(currPokemon.id, 0);
+
+                this.setState({
+                    lastEvolvedPokemon: nextEvolution
+                });
+            }
+        }
+
+        this.setState({
+            playerExp: currPlayerExp + playerExpToAdd,
+            randPokeIndex: -1,
+            caughtPokemon: newCaughtPokemonMap,
+            pokemonMap: newPokemonMap,
+            lastCaughtPokemon: currPokemon
+        });
     }
 
     changeRandPokemon(pokemon) {
@@ -140,7 +248,10 @@ class PokemonGame extends React.Component {
             randPokeIndex, 
             randTopPos, 
             randLeftPos,
-            caughtPokemon
+            caughtPokemon,
+            pokemonMap,
+            lastCaughtPokemon,
+            lastEvolvedPokemon
         } = this.state;
 
         const index = this.props.genNum === 5 ? 1 : 0;
@@ -148,12 +259,15 @@ class PokemonGame extends React.Component {
         const fireStarterData = this.props.pokemon[index+3];
         const waterStarterData = this.props.pokemon[index+6];
 
-        const pokedex = caughtPokemon.map((currPokemon, i) => {
-            return (
-                <div key={i} style={{"width": "200px", "height": "200px", "transform": "scale(0.4)", "transform-origin": "top left", "margin": "5px"}}>
-                    <Pokemon pokeData={currPokemon} trivia={false} />
-                </div>
-            );
+        const pokedex = [];
+        Array.from(caughtPokemon.entries()).forEach(([pokemonId, count]) => {
+            for (let i = 0; i < count; i++) {
+                pokedex.push(
+                    <div key={`${pokemonId}-${i}`} style={{"width": "200px", "height": "200px", "transform": "scale(0.4)", "transformOrigin": "top left", "margin": "5px"}}>
+                        <Pokemon pokeData={pokemonMap.get(pokemonId)} trivia={false} />
+                    </div>
+                );
+            }
         });
 
         return (
@@ -215,11 +329,19 @@ class PokemonGame extends React.Component {
                                     <div style={{"width": "15%"}}>
                                         <h4>Player Exp: {playerExp}</h4>
                                         {
-                                            caughtPokemon.length > 0 ? 
+                                            lastCaughtPokemon !== null ?
                                             <div>
-                                                <img src={caughtPokemon[caughtPokemon.length-1].sprites.front_default} alt='pokemon' />
-                                                <p>You caught {caughtPokemon[caughtPokemon.length-1].name}!</p>
+                                                <img src={lastCaughtPokemon.sprites.front_default} alt='pokemon' />
+                                                <p>You caught {lastCaughtPokemon.name}!</p>
                                             </div> : 
+                                            null
+                                        }
+                                        {
+                                            lastEvolvedPokemon !== null ?
+                                            <div>
+                                                <img src={lastEvolvedPokemon.sprites.front_default} alt='pokemon' />
+                                                <p>{lastEvolvedPokemon.name} evolved!</p>
+                                            </div> :
                                             null
                                         }
                                     </div>
@@ -241,7 +363,7 @@ class PokemonGame extends React.Component {
                                     </div>
                                 </div>
 
-                                <div style={{"display": "flex", "width": "fit-content", "margin": "auto", "margin-top": "5px"}}>
+                                <div style={{"display": "flex", "width": "fit-content", "margin": "auto", "marginTop": "5px"}}>
                                     <button style={{"margin": "5px"}} onClick={() => this.decrementScene(1)}>See Rules</button>
                                     <button style={{"margin": "5px"}} onClick={() => this.incrementScene(1)}>Fight Next Gym Leader</button>
                                     <button style={{"margin": "5px"}} onClick={() => this.incrementScene(2)}>View Pokemon</button>
@@ -269,7 +391,7 @@ class PokemonGame extends React.Component {
 
                                 <div style={{"margin": "auto", "width": "80%"}}>
                                     <h2>Pokedex</h2>
-                                    <div style={{"display": "flex", "flex-wrap": "wrap"}}>
+                                    <div style={{"display": "flex", "flexWrap": "wrap"}}>
                                         {pokedex}
                                     </div>
                                 </div>

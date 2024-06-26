@@ -13,7 +13,8 @@ class Generation extends React.Component {
             triviaGame: false,
             triviaGuess: "",
             showTriviaPokeName: false,
-            pokemonGame: false
+            pokemonGame: false,
+            loading: true
         };
 
         this.handleChange = this.handleChange.bind(this);
@@ -104,7 +105,16 @@ class Generation extends React.Component {
     }
 
     render() {
-        const { pokemon, currPokeData, randomIndex, triviaGame, triviaGuess, showTriviaPokeName, pokemonGame } = this.state;
+        const {
+            pokemon, 
+            currPokeData, 
+            randomIndex, 
+            triviaGame, 
+            triviaGuess, 
+            showTriviaPokeName, 
+            pokemonGame,
+            loading
+        } = this.state;
 
         const links = pokemon.map((pokeData) => {
             return (
@@ -115,6 +125,12 @@ class Generation extends React.Component {
                 </div>
             );
         });
+
+        if (loading && links.length > 0) {
+            this.setState({
+                loading: false
+            });
+        }
 
         return (
             <div>
@@ -151,8 +167,14 @@ class Generation extends React.Component {
                         ) :
                         (
                             <div>
-                                <button onClick={ () => this.loadTriviaGame() } style={{"margin-bottom": "20px"}}>Trivia Game</button>
-                                <button onClick={ () => this.loadPokemonGame() } style={{"margin-bottom": "20px"}}>Pokemon Game</button>
+                                {
+                                    !loading ?
+                                    <div style={{"width": "250px"}}>
+                                        <button onClick={ () => this.loadTriviaGame() } style={{"marginBottom": "20px"}}>Trivia Game</button>
+                                        <button onClick={ () => this.loadPokemonGame() } style={{"marginBottom": "20px", "float": "right"}}>Pokemon Game</button>
+                                    </div> :
+                                    null
+                                }
                                 <div className="grouping" id="pokedex-grouping">
                                     <div id="pokemon-list">
                                         {links}

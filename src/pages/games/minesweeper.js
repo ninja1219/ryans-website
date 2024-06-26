@@ -244,7 +244,7 @@ class MineSweeper extends React.Component {
                 {
                     squares === null ?
                     null :
-                    <button style={{"margin-top": "10px"}} onClick={() => this.resetGame()}>Start New Game</button>
+                    <button style={{"marginTop": "10px"}} onClick={() => this.resetGame()}>Start New Game</button>
                 }
             </div>
         );
