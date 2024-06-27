@@ -7,14 +7,11 @@ import Pokemon from "./pokemon";
 // pokemon h: 0 to 1025, v: -100 to 315
 
 // TODO:
-//    - Add 6 party pokemon to state and ability to add pokemon to your party
-//        - Change starter pokemon to primary and have 1st pokemon in party be the primary pokemon
 //    - Fix evolution issues with pokemon that can evolve but aren't
 //    - Sort all pokemon in pokedex when pokemon outside generation are added from evolutions
 //    - Implement gym battles (moves, strength (based on number of the pokemon caught), gym pokemon, etc.)
 //        - Must fight next gym if playerExp is so high (like maybe eery 30-40)
 //    - Update rules to match what is going on
-//    - Make sure evolution and playerExp is working good
 //    - Separate into multiple components
 // - Maybes:
 //    - I could have wild pokemon move around randomly
@@ -94,9 +91,9 @@ class PokemonGame extends React.Component {
             pokeMap.set(pokemon.id, pokemon);
         }
 
-        let playerExp = 50;
-        if (this.props.genNum === 5) {
-            playerExp = 56;
+        let playerExp = 52;
+        if (this.props.genNum >= 4 && this.props.genNum <= 7) {
+            playerExp = 57;
         }
         else if (this.props.genNum === 0) {
             playerExp = 40;
@@ -113,6 +110,7 @@ class PokemonGame extends React.Component {
             randTopPos: 0,
             randLeftPos: 0,
             caughtPokemon: caughtMap,  // pokemon id to # caught
+            numCaughtPokemon: 0,
             pokemonMap: pokeMap,  // pokemon id to pokemon data
             lastCaughtPokemon: null,
             lastEvolvedPokemon: null,
@@ -189,6 +187,7 @@ class PokemonGame extends React.Component {
         this.setState({
             primary: starter,
             caughtPokemon: caughtMap,
+            numCaughtPokemon: 1,
             partyPokemon: [starter]
         });
         this.incrementScene(1);
@@ -206,18 +205,20 @@ class PokemonGame extends React.Component {
         const currPokemonMap = this.state.pokemonMap;
 
         let newCaughtPokemonMap = new Map(currCaughtPokemonMap);
+        let numCaughtPokemon = this.state.numCaughtPokemon;
         if (firstCall) {
             newCaughtPokemonMap.set(currPokemon.id, currCaughtPokemonMap.get(currPokemon.id)+1);
+            numCaughtPokemon++;
         }
         let newPokemonMap = new Map(currPokemonMap);
 
         // Check if pokemon evolves
-        let playerExpToAdd = 0.5
-        if (newCaughtPokemonMap.get(currPokemon.id) >= 7) {
+        let playerExpToAdd = (numCaughtPokemon % 5 === 0 ? 1 : 0);
+        if (newCaughtPokemonMap.get(currPokemon.id) >= (this.props.genNum === 0 ? 4 : 7)) {
             const nextEvolution = await getPokemonEvolution(currPokemon.name);
 
             if (nextEvolution !== null) {
-                playerExpToAdd = 3;
+                playerExpToAdd = 2;
                 if (!newCaughtPokemonMap.has(nextEvolution.id)) {
                     newCaughtPokemonMap.set(nextEvolution.id, 0);
                     newPokemonMap.set(nextEvolution.id, nextEvolution);
@@ -266,6 +267,7 @@ class PokemonGame extends React.Component {
             playerExp: currPlayerExp + playerExpToAdd,
             randPokeIndex: -1,
             caughtPokemon: newCaughtPokemonMap,
+            numCaughtPokemon: numCaughtPokemon,
             pokemonMap: newPokemonMap,
             lastCaughtPokemon: currPokemon
         });
@@ -365,6 +367,7 @@ class PokemonGame extends React.Component {
             randTopPos,
             randLeftPos,
             caughtPokemon,
+            numCaughtPokemon,
             pokemonMap,
             lastCaughtPokemon,
             lastEvolvedPokemon,
@@ -505,6 +508,7 @@ class PokemonGame extends React.Component {
                                 <div style={{"display": "flex"}}>
                                     <div style={{"width": "15%"}}>
                                         <h4>Player Exp: {playerExp}</h4>
+                                        <h4># Caught Pokemon: {numCaughtPokemon}</h4>
                                         {
                                             lastCaughtPokemon !== null ?
                                             <div>
