@@ -23,7 +23,7 @@ import Pokemon from "./pokemon";
 //    - I could have multiple pokemon pop up at once
 
 
-// PokeAPI fetch methods
+// PokeAPI evolution fetch methods
 
 async function fetchPokemonSpecies(pokemonName) {
     const response = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${pokemonName}/`);
@@ -104,7 +104,7 @@ class PokemonGame extends React.Component {
 
         this.state = {
             playerExp: playerExp,
-            starter: null,
+            primary: null,
             sceneNumber: 0,
             gymNum: 0,
             playerTopPos: 200,
@@ -116,7 +116,8 @@ class PokemonGame extends React.Component {
             pokemonMap: pokeMap,  // pokemon id to pokemon data
             lastCaughtPokemon: null,
             lastEvolvedPokemon: null,
-            currClickedCaughtPokemonId: null
+            currClickedCaughtPokemonId: null,
+            partyPokemon: []
         }
     }
 
@@ -130,14 +131,14 @@ class PokemonGame extends React.Component {
             const playerPos = document.getElementById("wildPokemon").getBoundingClientRect();
             const pokemonPos = document.getElementById("player").getBoundingClientRect();
             if (playerPos.right > pokemonPos.left && playerPos.left < pokemonPos.right && playerPos.top < pokemonPos.bottom && playerPos.bottom > pokemonPos.top) {
-                this.updateCaughtPokemon(pokemon);
+                this.updateCaughtPokemon(pokemon[this.state.randPokeIndex], true);
             }
         }
 
         // Check if pokemon appears or vanishes
         const randNum = Math.floor(Math.random() * 100);
         if (this.state.randPokeIndex === -1 && randNum < 10) {  // 10% Chance of Pokemon Appearing
-            this.changeRandPokemon(pokemon);
+            this.changeRandPokemon(pokemon.length);
         }
         else if (randNum < 1) {  // 1% Chance of Pokemon Fleeing
             this.setState({
@@ -186,25 +187,33 @@ class PokemonGame extends React.Component {
         caughtMap.set(starter.id, caughtMap.get(starter.id)+1);
 
         this.setState({
-            starter: starter,
-            caughtPokemon: caughtMap
+            primary: starter,
+            caughtPokemon: caughtMap,
+            partyPokemon: [starter]
         });
         this.incrementScene(1);
     }
 
-    async updateCaughtPokemon(pokemon) {
-        const currPokemon = pokemon[this.state.randPokeIndex];
+    setPrimary(primary) {
+        this.setState({
+            primary: primary
+        });
+    }
+
+    async updateCaughtPokemon(currPokemon, firstCall) {
         const currPlayerExp = this.state.playerExp;
         const currCaughtPokemonMap = this.state.caughtPokemon;
         const currPokemonMap = this.state.pokemonMap;
 
         let newCaughtPokemonMap = new Map(currCaughtPokemonMap);
-        newCaughtPokemonMap.set(currPokemon.id, currCaughtPokemonMap.get(currPokemon.id)+1);
+        if (firstCall) {
+            newCaughtPokemonMap.set(currPokemon.id, currCaughtPokemonMap.get(currPokemon.id)+1);
+        }
         let newPokemonMap = new Map(currPokemonMap);
 
         // Check if pokemon evolves
         let playerExpToAdd = 0.5
-        if (newCaughtPokemonMap.get(currPokemon.id) >= 6) {
+        if (newCaughtPokemonMap.get(currPokemon.id) >= 7) {
             const nextEvolution = await getPokemonEvolution(currPokemon.name);
 
             if (nextEvolution !== null) {
@@ -216,9 +225,40 @@ class PokemonGame extends React.Component {
                 newCaughtPokemonMap.set(nextEvolution.id, newCaughtPokemonMap.get(nextEvolution.id)+1);
                 newCaughtPokemonMap.set(currPokemon.id, 0);
 
+                // Update primary pokemon
+                const primary = this.state.primary;
+                let newPrimary = primary;
+                if (primary.id === currPokemon.id) {
+                    newPrimary = nextEvolution;
+                }
+
+                // Update party pokemon
+                const partyPokemon = this.state.partyPokemon;
+                let newPartyPokemon = [];
+                let nextEvoInParty = false;
+                let pokemonInParty = false;
+                for (const currPartyPokemon of partyPokemon) {
+                    if (currPartyPokemon.id === currPokemon.id) {
+                        pokemonInParty = true;
+                    }
+                    else if (currPartyPokemon.id === nextEvolution.id) {
+                        nextEvoInParty = true;
+                    }
+                    else {
+                        newPartyPokemon.push(currPartyPokemon);
+                    }
+                }
+                if (pokemonInParty || nextEvoInParty) {
+                    newPartyPokemon.push(nextEvolution);
+                }
+
                 this.setState({
-                    lastEvolvedPokemon: nextEvolution
+                    primary: newPrimary,
+                    lastEvolvedPokemon: nextEvolution,
+                    partyPokemon: newPartyPokemon
                 });
+
+                this.updateCaughtPokemon(nextEvolution, false);
             }
         }
 
@@ -231,9 +271,9 @@ class PokemonGame extends React.Component {
         });
     }
 
-    changeRandPokemon(pokemon) {
+    changeRandPokemon(pokemonLen) {
         this.setState({
-            randPokeIndex: Math.floor(Math.random() * pokemon.length),
+            randPokeIndex: Math.floor(Math.random() * pokemonLen),
             randTopPos: Math.floor(Math.random() * 400) - 100,
             randLeftPos: Math.floor(Math.random() * 1025)
         });
@@ -273,24 +313,63 @@ class PokemonGame extends React.Component {
         });
     }
 
+    removePartyPokemon(partyPokeId) {
+        const currPartyPokemon = this.state.partyPokemon;
+        let newPartyPokemon = [];
+        for (const pokemon of currPartyPokemon) {
+            if (pokemon.id !== partyPokeId) {
+                newPartyPokemon.push(pokemon);
+            }
+        }
+
+        this.setState({
+            partyPokemon: newPartyPokemon
+        });
+    }
+
+    addPartyPokemon(pokemon) {
+        const currPartyPokemon = this.state.partyPokemon;
+        if (currPartyPokemon.length < 6) {
+            let canAdd = true;
+            for (const currPokemon of currPartyPokemon) {
+                if (pokemon.id === currPokemon.id) {
+                    canAdd = false;
+                }
+            }
+
+            if (canAdd) {
+                this.setState({
+                    partyPokemon: currPartyPokemon.concat(pokemon)
+                });
+            }
+            else {
+                console.log("Pokemon already in party");
+            }
+        }
+        else {
+            console.log("You cannot add more than 6 pokemon to your party. Remove one or more first.");
+        }
+    }
+
     render() {
         const pokemon = this.filterPokemon();
         // console.log(this.props.pokemon);
-        const { 
+        const {
             playerExp,
-            starter, 
-            sceneNumber, 
-            gymNum, 
-            playerTopPos, 
-            playerLeftPos, 
-            randPokeIndex, 
-            randTopPos, 
+            primary,
+            sceneNumber,
+            gymNum,
+            playerTopPos,
+            playerLeftPos,
+            randPokeIndex,
+            randTopPos,
             randLeftPos,
             caughtPokemon,
             pokemonMap,
             lastCaughtPokemon,
             lastEvolvedPokemon,
-            currClickedCaughtPokemonId
+            currClickedCaughtPokemonId,
+            partyPokemon
         } = this.state;
 
         const index = this.props.genNum === 5 ? 1 : 0;
@@ -298,20 +377,71 @@ class PokemonGame extends React.Component {
         const fireStarterData = this.props.pokemon[index+3];
         const waterStarterData = this.props.pokemon[index+6];
 
+        let primaryPokemon = null;
+        if (primary !== null) {
+            let transform = "scale(0.5)";
+            let sideLen = "250px";
+            if (currClickedCaughtPokemonId === `Primary-${primary.id}`) {
+                transform = "scale(1)";
+                sideLen = "500px";
+            }
+
+            primaryPokemon = (
+                <div key={`Primary-${primary.id}`} onClick={ () => this.updatePokeImgStyle(`Primary-${primary.id}`) } style={{"width": sideLen, "height": sideLen, "transform": transform, "transformOrigin": "top left", "margin": "5px"}}>
+                    <Pokemon pokeData={pokemonMap.get(primary.id)} trivia={false} />
+                </div>
+            );
+        }
+
+        const currPartyPokemon = [];
+        partyPokemon.forEach((partyPoke) => {
+            const partyPokeId = `partyPoke-${partyPoke.id}`
+
+            let transform = "scale(0.5)";
+            let sideLen = "250px";
+            if (currClickedCaughtPokemonId === partyPokeId) {
+                transform = "scale(1)";
+                sideLen = "500px";
+            }
+
+            currPartyPokemon.push(
+                <div>
+                    <div key={partyPokeId} onClick={ () => this.updatePokeImgStyle(partyPokeId) } style={{"width": sideLen, "height": sideLen, "transform": transform, "transformOrigin": "top left", "margin": "5px"}}>
+                        <Pokemon pokeData={pokemonMap.get(partyPoke.id)} trivia={false} />
+                    </div>
+                    <div style={{"display": "flex", "justifyContent": "center"}}>
+                        <button onClick={() => this.removePartyPokemon(partyPoke.id)}>Remove from Party</button>
+                    </div>
+                </div>
+            );
+        });
+
         const pokedex = [];
         Array.from(caughtPokemon.entries()).forEach(([pokemonId, count]) => {
-            for (let i = 0; i < count; i++) {
-                const pokeId = `${pokemonId}-${i}`
-                let transform = "scale(0.4)";
-                let sideLen = "200px";
+            if (count > 0) {
+                const pokeId = `${pokemonId}`
+
+                let transform = "scale(0.5)";
+                let sideLen = "250px";
                 if (currClickedCaughtPokemonId === pokeId) {
-                    transform = "scale(0.8)";
-                    sideLen = "400px";
+                    transform = "scale(1)";
+                    sideLen = "500px";
                 }
 
                 pokedex.push(
-                    <div key={pokeId} onClick={ () => this.updatePokeImgStyle(pokeId) } style={{"width": sideLen, "height": sideLen, "transform": transform, "transformOrigin": "top left", "margin": "5px"}}>
-                        <Pokemon pokeData={pokemonMap.get(pokemonId)} trivia={false} />
+                    <div>
+                        <div style={{"display": "flex", "flexDirection": "column", "alignItems": "center"}}>
+                            <p style={{"margin": "5px", "marginBottom": "0px"}}>Caught: {count}</p>
+
+                            <div key={pokeId} onClick={ () => this.updatePokeImgStyle(pokeId) } style={{"width": sideLen, "height": sideLen, "transform": transform, "transformOrigin": "top left", "margin": "5px"}}>
+                                <Pokemon pokeData={pokemonMap.get(pokemonId)} trivia={false} />
+                            </div>
+                        
+                            <div>
+                                <button onClick={() => this.setPrimary(pokemonMap.get(pokemonId))}>Set as Primary</button>
+                                <button onClick={() => this.addPartyPokemon(pokemonMap.get(pokemonId))} style={{"margin-left": "50px"}}>Add to Party</button>
+                            </div>
+                        </div>
                     </div>
                 );
             }
@@ -397,7 +527,7 @@ class PokemonGame extends React.Component {
                                         <img src={PokemonBackgroundImage} alt='pokemon' style={{"position": "absolute", "width": "66.7%", "height": "500px", "border": "solid 2px black"}} />
 
                                         <div id="player" style={{"width": "60px", "position": "relative", "top": playerTopPos, "left": playerLeftPos}}>
-                                            <img src={starter.sprites.front_default} alt='pokemon' />
+                                            <img src={primary.sprites.front_default} alt='pokemon' />
                                         </div>
                                         
                                         {
@@ -436,11 +566,29 @@ class PokemonGame extends React.Component {
                             <div>
                                 <button onClick={() => this.decrementScene(2)}>Back</button>
 
-                                <div style={{"margin": "auto", "width": "80%"}}>
+                                <div style={{"margin": "auto", "width": "98%"}}>
+                                    <hr style={{"marginTop": "30px"}} />
+
+                                    <h2>Primary Pokemon</h2>
+                                    <div>
+                                        {primaryPokemon}
+                                    </div>
+
+                                    <hr style={{"marginTop": "30px"}} />
+
+                                    <h2>Party Pokemon</h2>
+                                    <div style={{"display": "flex", "flexWrap": "wrap"}}>
+                                        {currPartyPokemon}
+                                    </div>
+
+                                    <hr style={{"marginTop": "30px"}} />
+
                                     <h2>Pokedex</h2>
                                     <div style={{"display": "flex", "flexWrap": "wrap"}}>
                                         {pokedex}
                                     </div>
+
+                                    <hr style={{"marginTop": "30px"}} />
                                 </div>
                             </div>
                         ) :
