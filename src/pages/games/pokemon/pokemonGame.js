@@ -7,17 +7,23 @@ import Pokemon from "./pokemon";
 // pokemon h: 0 to 1025, v: -100 to 315
 
 // TODO:
+//    - Add 6 party pokemon to state and ability to add pokemon to your party
+//        - Change starter pokemon to primary and have 1st pokemon in party be the primary pokemon
 //    - Fix evolution issues with pokemon that can evolve but aren't
 //    - Sort all pokemon in pokedex when pokemon outside generation are added from evolutions
 //    - Implement gym battles (moves, strength (based on number of the pokemon caught), gym pokemon, etc.)
 //        - Must fight next gym if playerExp is so high (like maybe eery 30-40)
 //    - Update rules to match what is going on
 //    - Make sure evolution and playerExp is working good
+//    - Separate into multiple components
 // - Maybes:
 //    - I could have wild pokemon move around randomly
 //    - I could add items (pokeballs, berries, potions, evolution stones, etc.), but this isn't necessary
 //    - I could have trainers pop up randomly as well
 //    - I could have multiple pokemon pop up at once
+
+
+// PokeAPI fetch methods
 
 async function fetchPokemonSpecies(pokemonName) {
     const response = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${pokemonName}/`);
@@ -109,7 +115,8 @@ class PokemonGame extends React.Component {
             caughtPokemon: caughtMap,  // pokemon id to # caught
             pokemonMap: pokeMap,  // pokemon id to pokemon data
             lastCaughtPokemon: null,
-            lastEvolvedPokemon: null
+            lastEvolvedPokemon: null,
+            currClickedCaughtPokemonId: null
         }
     }
 
@@ -256,6 +263,16 @@ class PokemonGame extends React.Component {
         return filteredPokemon;
     }
 
+    updatePokeImgStyle(pokeId) {
+        if (this.state.currClickedCaughtPokemonId === pokeId) {
+            pokeId = null;
+        }
+
+        this.setState({
+            currClickedCaughtPokemonId: pokeId
+        });
+    }
+
     render() {
         const pokemon = this.filterPokemon();
         // console.log(this.props.pokemon);
@@ -272,7 +289,8 @@ class PokemonGame extends React.Component {
             caughtPokemon,
             pokemonMap,
             lastCaughtPokemon,
-            lastEvolvedPokemon
+            lastEvolvedPokemon,
+            currClickedCaughtPokemonId
         } = this.state;
 
         const index = this.props.genNum === 5 ? 1 : 0;
@@ -283,8 +301,16 @@ class PokemonGame extends React.Component {
         const pokedex = [];
         Array.from(caughtPokemon.entries()).forEach(([pokemonId, count]) => {
             for (let i = 0; i < count; i++) {
+                const pokeId = `${pokemonId}-${i}`
+                let transform = "scale(0.4)";
+                let sideLen = "200px";
+                if (currClickedCaughtPokemonId === pokeId) {
+                    transform = "scale(0.8)";
+                    sideLen = "400px";
+                }
+
                 pokedex.push(
-                    <div key={`${pokemonId}-${i}`} style={{"width": "200px", "height": "200px", "transform": "scale(0.4)", "transformOrigin": "top left", "margin": "5px"}}>
+                    <div key={pokeId} onClick={ () => this.updatePokeImgStyle(pokeId) } style={{"width": sideLen, "height": sideLen, "transform": transform, "transformOrigin": "top left", "margin": "5px"}}>
                         <Pokemon pokeData={pokemonMap.get(pokemonId)} trivia={false} />
                     </div>
                 );

@@ -31,11 +31,11 @@ class Pokemon extends React.Component {
                 </div>
             );
         });
-        // const stats = this.props.pokeData.stats.map((stat, i) => {
-        //     return (
-        //         <div key={i}>{stat.stat.name}: {stat.base_stat}</div>
-        //     );
-        // });
+        const stats = this.props.pokeData.stats.map((stat, i) => {
+            return (
+                <div key={i}>{stat.stat.name}: {stat.base_stat}</div>
+            );
+        });
         const backgroundColor = pokeColor[this.props.pokeData.types[0].type.name];
         //console.log(this.props.pokeData);
 
@@ -59,12 +59,12 @@ class Pokemon extends React.Component {
                         {types}
                     </div>
 
-                    {/* <div>
+                    <div>
                         <div>
                             Base Exp: {this.props.pokeData.base_experience}
                         </div>
                         {stats}
-                    </div> */}
+                    </div>
                 </div>
             </div>
         )
