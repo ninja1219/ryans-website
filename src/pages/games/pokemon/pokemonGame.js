@@ -1,5 +1,6 @@
 import React from 'react';
 import PokemonBackgroundImage from "./images/pokemon-background.jpg";
+import PokemonBattleImage from "./images/pokemon-battle.jfif";
 import Pokemon from "./pokemon";
 
 // Position Possibilities:
@@ -9,8 +10,9 @@ import Pokemon from "./pokemon";
 // TODO:
 //    - Fix evolution issues with pokemon that can evolve but aren't
 //    - Sort all pokemon in pokedex when pokemon outside generation are added from evolutions
+//    - Make multiple areas to visit (where certain types appear in each area - possibly with some overlap)
 //    - Implement gym battles (moves, strength (based on number of the pokemon caught), gym pokemon, etc.)
-//        - Must fight next gym if playerExp is so high (like maybe eery 30-40)
+//        - Must fight next gym if playerExp is so high (like maybe every 30-40)
 //    - Update rules to match what is going on
 //    - Separate into multiple components
 // - Maybes:
@@ -18,6 +20,28 @@ import Pokemon from "./pokemon";
 //    - I could add items (pokeballs, berries, potions, evolution stones, etc.), but this isn't necessary
 //    - I could have trainers pop up randomly as well
 //    - I could have multiple pokemon pop up at once
+
+
+// Gym Leader Types
+let gymTypesMap = new Map();
+gymTypesMap.set(1, "grass");
+gymTypesMap.set(2, "water");
+gymTypesMap.set(3, "fire");
+gymTypesMap.set(4, "fighting");
+gymTypesMap.set(5, "electric");
+gymTypesMap.set(6, "rock");
+gymTypesMap.set(7, "dark");
+gymTypesMap.set(8, "dragon");
+
+let gymExpMap = new Map();
+gymExpMap.set(1, 80);
+gymExpMap.set(2, 110);
+gymExpMap.set(3, 140);
+gymExpMap.set(4, 170);
+gymExpMap.set(5, 200);
+gymExpMap.set(6, 230);
+gymExpMap.set(7, 260);
+gymExpMap.set(8, 290);
 
 
 // PokeAPI evolution fetch methods
@@ -96,19 +120,23 @@ class PokemonGame extends React.Component {
             playerExp = 57;
         }
         else if (this.props.genNum === 0) {
-            playerExp = 40;
+            playerExp = 42;
         }
 
         this.state = {
             playerExp: playerExp,
             primary: null,
             sceneNumber: 0,
-            gymNum: 0,
+            gymNum: 1,
             playerTopPos: 200,
             playerLeftPos: 512,
+            playerBattleTopPos: 200,
+            playerBattleLeftPos: 150,
             randPokeIndex: -1,
             randTopPos: 0,
             randLeftPos: 0,
+            gymBattleTopPos: 120,
+            gymBattleLeftPos: 875,
             caughtPokemon: caughtMap,  // pokemon id to # caught
             numCaughtPokemon: 0,
             pokemonMap: pokeMap,  // pokemon id to pokemon data
@@ -120,6 +148,11 @@ class PokemonGame extends React.Component {
     }
 
     handleKeyDown(event) {
+        if (this.state.sceneNumber === 3) {
+            this.handleKeyDownBattle(event);
+            return;
+        }
+
         // Update player position
         this.updatePlayerPosition(event);
 
@@ -143,6 +176,18 @@ class PokemonGame extends React.Component {
                 randPokeIndex: -1
             });
         }
+    }
+
+    handleKeyDownBattle(event) {
+        // TODO!
+        // Ideas:
+        //    - Switch off being chaser and runner, and if caught, damage is dealt based on how strong the pokemon is
+        //    - Have a timer so the catcher has to tag the runner in 15 seconds or so
+        //    - I might want to create a different component for this to keep the code cleaner (maybe not though)
+        //    - Upon winning, gain 5-10 experience and update gymNum in state (after decrementing scene num)
+        //    - When switching between chaser and runner, send both pokemon to random locations on the field
+
+        this.updatePlayerPosition(event);
     }
 
     updatePlayerPosition(event) {
@@ -213,12 +258,12 @@ class PokemonGame extends React.Component {
         let newPokemonMap = new Map(currPokemonMap);
 
         // Check if pokemon evolves
-        let playerExpToAdd = (numCaughtPokemon % 5 === 0 ? 1 : 0);
-        if (newCaughtPokemonMap.get(currPokemon.id) >= (this.props.genNum === 0 ? 4 : 7)) {
+        let playerExpToAdd = (numCaughtPokemon % 4 === 0 ? 1 : 0);
+        if (newCaughtPokemonMap.get(currPokemon.id) >= (this.props.genNum === 0 ? 3 : 6)) {
             const nextEvolution = await getPokemonEvolution(currPokemon.name);
 
             if (nextEvolution !== null) {
-                playerExpToAdd = 2;
+                playerExpToAdd = 5;
                 if (!newCaughtPokemonMap.has(nextEvolution.id)) {
                     newCaughtPokemonMap.set(nextEvolution.id, 0);
                     newPokemonMap.set(nextEvolution.id, nextEvolution);
@@ -286,6 +331,16 @@ class PokemonGame extends React.Component {
         this.setState({
             sceneNumber: currNum+num
         });
+
+        // Place pokemon in correct starting positions for gym battles
+        if (currNum+num === 3) {
+            this.setState({
+                playerBattleTopPos: 200,
+                playerBattleLeftPos: 125,
+                gymBattleTopPos: 105,
+                gymBattleLeftPos: 905,
+            });
+        }
     }
 
     decrementScene(num) {
@@ -302,6 +357,36 @@ class PokemonGame extends React.Component {
                 filteredPokemon.push(pokemon);
             }
         }
+        return filteredPokemon;
+    }
+
+    filterPokemonForGym() {
+        const gymNum = this.state.gymNum;
+        let filteredPokemon = [];
+
+        for (const pokemon of this.props.pokemon) {
+            if (pokemon.base_experience < gymExpMap.get(gymNum) && pokemon.base_experience > (gymExpMap.get(gymNum)-60)) {
+                for (const type of pokemon.types) {
+                    if (type.type.name === gymTypesMap.get(gymNum)) {
+                        filteredPokemon.push(pokemon);
+                    }
+                }
+            }
+        }
+
+        if (filteredPokemon.length > 6) {
+            let newFilteredPokemon = [];
+            let randNums = new Set();
+            while (randNums.size < 6) {
+                randNums.add(Math.floor(Math.random() * filteredPokemon.length));
+            }
+
+            for (const num of randNums) {
+                newFilteredPokemon.push(filteredPokemon[num]);
+            }
+            filteredPokemon = newFilteredPokemon;
+        }
+
         return filteredPokemon;
     }
 
@@ -363,9 +448,13 @@ class PokemonGame extends React.Component {
             gymNum,
             playerTopPos,
             playerLeftPos,
+            playerBattleTopPos,
+            playerBattleLeftPos,
             randPokeIndex,
             randTopPos,
             randLeftPos,
+            gymBattleTopPos,
+            gymBattleLeftPos,
             caughtPokemon,
             numCaughtPokemon,
             pokemonMap,
@@ -408,8 +497,8 @@ class PokemonGame extends React.Component {
             }
 
             currPartyPokemon.push(
-                <div>
-                    <div key={partyPokeId} onClick={ () => this.updatePokeImgStyle(partyPokeId) } style={{"width": sideLen, "height": sideLen, "transform": transform, "transformOrigin": "top left", "margin": "5px"}}>
+                <div key={partyPokeId}>
+                    <div onClick={ () => this.updatePokeImgStyle(partyPokeId) } style={{"width": sideLen, "height": sideLen, "transform": transform, "transformOrigin": "top left", "margin": "5px"}}>
                         <Pokemon pokeData={pokemonMap.get(partyPoke.id)} trivia={false} />
                     </div>
                     <div style={{"display": "flex", "justifyContent": "center"}}>
@@ -432,22 +521,43 @@ class PokemonGame extends React.Component {
                 }
 
                 pokedex.push(
-                    <div>
+                    <div key={pokeId}>
                         <div style={{"display": "flex", "flexDirection": "column", "alignItems": "center"}}>
                             <p style={{"margin": "5px", "marginBottom": "0px"}}>Caught: {count}</p>
 
-                            <div key={pokeId} onClick={ () => this.updatePokeImgStyle(pokeId) } style={{"width": sideLen, "height": sideLen, "transform": transform, "transformOrigin": "top left", "margin": "5px"}}>
+                            <div onClick={ () => this.updatePokeImgStyle(pokeId) } style={{"width": sideLen, "height": sideLen, "transform": transform, "transformOrigin": "top left", "margin": "5px"}}>
                                 <Pokemon pokeData={pokemonMap.get(pokemonId)} trivia={false} />
                             </div>
                         
                             <div>
                                 <button onClick={() => this.setPrimary(pokemonMap.get(pokemonId))}>Set as Primary</button>
-                                <button onClick={() => this.addPartyPokemon(pokemonMap.get(pokemonId))} style={{"margin-left": "50px"}}>Add to Party</button>
+                                <button onClick={() => this.addPartyPokemon(pokemonMap.get(pokemonId))} style={{"marginLeft": "50px"}}>Add to Party</button>
                             </div>
                         </div>
                     </div>
                 );
             }
+        });
+
+        const gymPartyPokemon = [];
+        partyPokemon.forEach((partyPoke) => {
+            gymPartyPokemon.push(
+                <div key={`gymPartyPoke-${partyPoke.id}`} style={{"display": "flex", "flexDirection": "column", "justifyContent": "center"}}>
+                    <img src={partyPoke.sprites.front_default} alt='pokemon' />
+                    <p>{partyPoke.name}!</p>
+                </div>
+            );
+        });
+
+        const gymPokemon = this.filterPokemonForGym();
+        const gymPokemonList = [];
+        gymPokemon.forEach((partyPoke) => {
+            gymPokemonList.push(
+                <div key={`gymPartyPoke-${partyPoke.id}`} style={{"display": "flex", "flexDirection": "column", "justifyContent": "center"}}>
+                    <img src={partyPoke.sprites.front_default} alt='pokemon' />
+                    <p>{partyPoke.name}!</p>
+                </div>
+            );
         });
 
         return (
@@ -557,9 +667,37 @@ class PokemonGame extends React.Component {
                         sceneNumber === 3 ?
                         (
                             <div>
+                                <h2>Gym {gymNum}</h2>
+
                                 <button onClick={() => this.decrementScene(1)}>Back</button>
 
-                                <h2>Gym {gymNum}</h2>
+                                <div style={{"margin": "auto", "marginBottom": "50px"}}>
+                                    <h4 style={{"width": "fit-content", "margin": "auto"}}>Click within the box when ready to move</h4>
+
+                                    <div style={{"display": "flex"}}>
+                                        <div style={{"width": "15%", "height": "500px", "display": "flex", "flexDirection": "column", "alignItems": "center", "overflowY": "auto"}}>
+                                            <h2>Party Pokemon</h2>
+                                            {gymPartyPokemon}
+                                        </div>
+
+                                        <div onKeyDown={ this.handleKeyDown } tabIndex="0" style={{"width": "70%", "height": "500px"}}>
+                                            <img src={PokemonBattleImage} alt='pokemon' style={{"position": "absolute", "width": "66.7%", "height": "500px", "border": "solid 2px black"}} />
+
+                                            <div id="player" style={{"width": "60px", "position": "relative", "top": playerBattleTopPos, "left": playerBattleLeftPos}}>
+                                                <img src={primary.sprites.front_default} alt='pokemon' />
+                                            </div>
+                                            
+                                            <div id="gymPokemon" style={{"width": "60px", "position": "relative", "top": gymBattleTopPos, "left": gymBattleLeftPos}}>
+                                                <img src={gymPokemon[0].sprites.front_default} alt='pokemon' />
+                                            </div>
+                                        </div>
+
+                                        <div style={{"width": "15%", "height": "500px", "display": "flex", "flexDirection": "column", "alignItems": "center", "overflowY": "auto"}}>
+                                            <h2>Gym Pokemon</h2>
+                                            {gymPokemonList}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         ) :
                         null
