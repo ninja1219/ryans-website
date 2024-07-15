@@ -8,11 +8,10 @@ import Pokemon from "./pokemon";
 // pokemon h: 0 to 1025, v: -100 to 315
 
 // TODO:
+//    - Find better gym types for each generation
 //    - Fix evolution issues with pokemon that can evolve but aren't
 //    - Sort all pokemon in pokedex when pokemon outside generation are added from evolutions
 //    - Make multiple areas to visit (where certain types appear in each area - possibly with some overlap)
-//    - Implement gym battles (moves, strength (based on number of the pokemon caught), gym pokemon, etc.)
-//        - Must fight next gym if playerExp is so high (like maybe every 30-40)
 //    - Update rules to match what is going on
 //    - Separate into multiple components
 // - Maybes:
@@ -22,7 +21,7 @@ import Pokemon from "./pokemon";
 //    - I could have multiple pokemon pop up at once
 
 
-// Gym Leader Types
+// Gym Leader Types and Exp Levels
 let gymTypesMap = new Map();
 gymTypesMap.set(1, "grass");
 gymTypesMap.set(2, "water");
@@ -30,18 +29,18 @@ gymTypesMap.set(3, "fire");
 gymTypesMap.set(4, "fighting");
 gymTypesMap.set(5, "electric");
 gymTypesMap.set(6, "rock");
-gymTypesMap.set(7, "dark");
+gymTypesMap.set(7, "ghost");
 gymTypesMap.set(8, "dragon");
 
 let gymExpMap = new Map();
-gymExpMap.set(1, 80);
-gymExpMap.set(2, 110);
-gymExpMap.set(3, 140);
-gymExpMap.set(4, 170);
-gymExpMap.set(5, 200);
-gymExpMap.set(6, 230);
-gymExpMap.set(7, 260);
-gymExpMap.set(8, 290);
+gymExpMap.set(1, 90);
+gymExpMap.set(2, 120);
+gymExpMap.set(3, 150);
+gymExpMap.set(4, 180);
+gymExpMap.set(5, 210);
+gymExpMap.set(6, 240);
+gymExpMap.set(7, 270);
+gymExpMap.set(8, 300);
 
 
 // PokeAPI evolution fetch methods
@@ -143,7 +142,13 @@ class PokemonGame extends React.Component {
             lastCaughtPokemon: null,
             lastEvolvedPokemon: null,
             currClickedCaughtPokemonId: null,
-            partyPokemon: []
+            partyPokemon: [],
+            gymPokemon: [],
+            partyPokeIndex: 0,
+            gymPokeIndex: 0,
+            gymPokeIsChaser: false,
+            gymStatus: null,
+            gymTimer: 0
         }
     }
 
@@ -179,15 +184,92 @@ class PokemonGame extends React.Component {
     }
 
     handleKeyDownBattle(event) {
-        // TODO!
-        // Ideas:
-        //    - Switch off being chaser and runner, and if caught, damage is dealt based on how strong the pokemon is
-        //    - Have a timer so the catcher has to tag the runner in 15 seconds or so
-        //    - I might want to create a different component for this to keep the code cleaner (maybe not though)
-        //    - Upon winning, gain 5-10 experience and update gymNum in state (after decrementing scene num)
-        //    - When switching between chaser and runner, send both pokemon to random locations on the field
+        this.updateGymPlayerPosition(event);
 
-        this.updatePlayerPosition(event);
+        const playerPos = document.getElementById("gymPlayer").getBoundingClientRect();
+        const pokemonPos = document.getElementById("gymPokemon").getBoundingClientRect();
+        if (this.state.gymPokeIsChaser) {
+            if (this.state.gymTimer >= 50) {  // updates after 50 moves
+                this.updateChaser(Date.now());
+            }
+            else {
+                const currTimer = this.state.gymTimer;
+                this.setState({
+                    gymTimer: currTimer+1
+                });
+            }
+
+            // Update gymPokePos - run toward player
+            this.updateGymPokePosChaser(playerPos, pokemonPos);
+
+            if (playerPos.right > pokemonPos.left && playerPos.left < pokemonPos.right && playerPos.top < pokemonPos.bottom && playerPos.bottom > pokemonPos.top) {
+                const nextPartyPokeIndex = this.state.partyPokeIndex+1;
+                if (this.state.partyPokemon.length > nextPartyPokeIndex) {
+                    this.setState({
+                        playerBattleTopPos: Math.floor(Math.random() * 400),
+                        playerBattleLeftPos: Math.floor(Math.random() * 1025),
+                        partyPokeIndex: nextPartyPokeIndex
+                    });
+                }
+                else {
+                    const currGymNum = this.state.gymNum;
+                    this.setState({
+                        sceneNumber: 2,
+                        playerBattleTopPos: 200,
+                        playerBattleLeftPos: 150,
+                        gymBattleTopPos: 120,
+                        gymBattleLeftPos: 875,
+                        partyPokeIndex: 0,
+                        gymPokeIndex: 0,
+                        gymStatus: "You lost to the " + gymTypesMap.get(currGymNum) + " gym!"
+                    });
+                }
+            }
+        }
+        else {
+            if (Date.now() - this.state.gymTimer >= 10000) {  // Updates after 10 seconds
+                this.updateChaser(0);
+            }
+
+            // Update gymPokePos - run away from player
+            this.updateGymPokePosRunner(playerPos, pokemonPos);
+            
+            if (playerPos.right > pokemonPos.left && playerPos.left < pokemonPos.right && playerPos.top < pokemonPos.bottom && playerPos.bottom > pokemonPos.top) {
+                const nextGymPokeIndex = this.state.gymPokeIndex+1;
+                if (this.state.gymPokemon.length > nextGymPokeIndex) {
+                    this.setState({
+                        gymBattleTopPos: Math.floor(Math.random() * 400) - 100,
+                        gymBattleLeftPos: Math.floor(Math.random() * 1025),
+                        gymPokeIndex: nextGymPokeIndex
+                    });
+                }
+                else {
+                    const currPlayerExp = this.state.playerExp;
+                    const currGymNum = this.state.gymNum;
+                    this.setState({
+                        playerExp: currPlayerExp+5,
+                        sceneNumber: 2,
+                        gymNum: currGymNum+1,
+                        playerBattleTopPos: 200,
+                        playerBattleLeftPos: 150,
+                        gymBattleTopPos: 120,
+                        gymBattleLeftPos: 875,
+                        gymPokemon: this.filterPokemonForGym(currGymNum+1),
+                        partyPokeIndex: 0,
+                        gymPokeIndex: 0,
+                        gymStatus: "You beat the " + gymTypesMap.get(currGymNum) + " gym!"
+                    });
+                }
+            }
+        }
+    }
+
+    updateChaser(timer) {
+        const currChaser = this.state.gymPokeIsChaser;
+        this.setState({
+            gymPokeIsChaser: !currChaser,
+            gymTimer: timer
+        });
     }
 
     updatePlayerPosition(event) {
@@ -224,16 +306,156 @@ class PokemonGame extends React.Component {
         }
     }
 
+    updateGymPlayerPosition(event) {
+        const currTopPos = this.state.playerBattleTopPos;
+        const currLeftPos = this.state.playerBattleLeftPos;
+
+        const stepsTaken = this.getStepsTaken();
+        if (event.keyCode === 37) { // Left
+            if (currLeftPos >= 0+stepsTaken) {
+                this.setState({
+                    playerBattleLeftPos: currLeftPos-stepsTaken
+                });
+            }
+        }
+        else if (event.keyCode === 38) {  // Up
+            if (currTopPos >= 0+stepsTaken) {
+                this.setState({
+                    playerBattleTopPos: currTopPos-stepsTaken
+                });
+            }
+        }
+        else if (event.keyCode === 39) {  // Right
+            if (currLeftPos <= 1025-stepsTaken) {
+                this.setState({
+                    playerBattleLeftPos: currLeftPos+stepsTaken
+                });
+            }
+        }
+        else if (event.keyCode === 40) {  // Down
+            if (currTopPos <= 400-stepsTaken) {
+                this.setState({
+                    playerBattleTopPos: currTopPos+stepsTaken
+                });
+            }
+        }
+    }
+
+    getStepsTaken() {
+        const currPokemon = this.state.partyPokemon[this.state.partyPokeIndex];
+        let baseExpStat = 50;
+        for (const stat of currPokemon.stats) {
+            if (stat.stat.name === "base-experience") {
+                baseExpStat = stat.base_stat;
+            }
+        }
+
+        const stepsTaken = 20 + Math.floor((baseExpStat + (this.state.caughtPokemon.get(currPokemon.id)*20)) / 50);
+
+        return stepsTaken;
+    }
+
+    updateGymPokePosChaser(playerPos, pokemonPos) {
+        const currTopPos = this.state.gymBattleTopPos;
+        const currLeftPos = this.state.gymBattleLeftPos;
+
+        let isLeft = false;
+        let isTop = false;
+        if (playerPos.left < pokemonPos.left) {
+            isLeft = true;
+        }
+        if (playerPos.top < pokemonPos.top) {
+            isTop = true;
+        }
+
+        const stepsTaken = 12 + this.state.gymNum;
+        if (isLeft && Math.abs(playerPos.top-pokemonPos.top) <= Math.abs(pokemonPos.left-playerPos.left)) { // Left
+            if (currLeftPos >= 0+stepsTaken) {
+                this.setState({
+                    gymBattleLeftPos: currLeftPos-stepsTaken
+                });
+            }
+        }
+        else if (isTop && Math.abs(pokemonPos.left-playerPos.left) <= Math.abs(playerPos.top-pokemonPos.top)) {  // Up
+            if (currTopPos >= -100+stepsTaken) {
+                this.setState({
+                    gymBattleTopPos: currTopPos-stepsTaken
+                });
+            }
+        }
+        else if (!isLeft && Math.abs(playerPos.top-pokemonPos.top) <= Math.abs(pokemonPos.left-playerPos.left)) {  // Right
+            if (currLeftPos <= 1025-stepsTaken) {
+                this.setState({
+                    gymBattleLeftPos: currLeftPos+stepsTaken
+                });
+            }
+        }
+        else if (!isTop && Math.abs(pokemonPos.left-playerPos.left) <= Math.abs(playerPos.top-pokemonPos.top)) {  // Down
+            if (currTopPos <= 315-stepsTaken) {
+                this.setState({
+                    gymBattleTopPos: currTopPos+stepsTaken
+                });
+            }
+        }
+        else {
+            console.error("Gym Pokemon isn't moving");
+        }
+    }
+
+    updateGymPokePosRunner(playerPos, pokemonPos) {
+        const currTopPos = this.state.gymBattleTopPos;
+        const currLeftPos = this.state.gymBattleLeftPos;
+
+        let isLeft = false;
+        let isTop = false;
+        if (playerPos.left < pokemonPos.left) {
+            isLeft = true;
+        }
+        if (playerPos.top < pokemonPos.top) {
+            isTop = true;
+        }
+
+        const stepsTaken = 12 + this.state.gymNum;
+        if (isLeft && Math.abs(playerPos.top-pokemonPos.top) <= Math.abs(pokemonPos.left-playerPos.left) && currLeftPos <= 1025-stepsTaken) {  // Left
+            this.setState({
+                gymBattleLeftPos: currLeftPos+stepsTaken
+            });
+        }
+        else if (isTop && Math.abs(pokemonPos.left-playerPos.left) <= Math.abs(playerPos.top-pokemonPos.top) && currTopPos <= 315-stepsTaken) {  // Up
+            this.setState({
+                gymBattleTopPos: currTopPos+stepsTaken
+            });
+        }
+        else if (!isLeft && Math.abs(playerPos.top-pokemonPos.top) <= Math.abs(pokemonPos.left-playerPos.left) && currLeftPos >= 0+stepsTaken) {  // Right
+            this.setState({
+                gymBattleLeftPos: currLeftPos-stepsTaken
+            });
+        }
+        else if (!isTop && Math.abs(pokemonPos.left-playerPos.left) <= Math.abs(playerPos.top-pokemonPos.top) && currTopPos >= -100+stepsTaken) {  // Down
+            this.setState({
+                gymBattleTopPos: currTopPos-stepsTaken
+            });
+        }
+        else {
+            this.setState({
+                gymBattleTopPos: Math.floor(Math.random() * 415) - 100,
+                gymBattleLeftPos: Math.floor(Math.random() * 1025)
+            });
+        }
+    }
+
     setStarter(starter) {
         // Set up caughtPokemon map
         let caughtMap = new Map(this.state.caughtPokemon);
         caughtMap.set(starter.id, caughtMap.get(starter.id)+1);
 
+        const gymNum = this.state.gymNum;
         this.setState({
             primary: starter,
             caughtPokemon: caughtMap,
             numCaughtPokemon: 1,
-            partyPokemon: [starter]
+            partyPokemon: [starter],
+            gymPokemon: this.filterPokemonForGym(gymNum)
         });
         this.incrementScene(1);
     }
@@ -263,7 +485,7 @@ class PokemonGame extends React.Component {
             const nextEvolution = await getPokemonEvolution(currPokemon.name);
 
             if (nextEvolution !== null) {
-                playerExpToAdd = 5;
+                playerExpToAdd = 3;
                 if (!newCaughtPokemonMap.has(nextEvolution.id)) {
                     newCaughtPokemonMap.set(nextEvolution.id, 0);
                     newPokemonMap.set(nextEvolution.id, nextEvolution);
@@ -339,6 +561,8 @@ class PokemonGame extends React.Component {
                 playerBattleLeftPos: 125,
                 gymBattleTopPos: 105,
                 gymBattleLeftPos: 905,
+                gymPokeIsChaser: false,
+                gymTimer: Date.now()
             });
         }
     }
@@ -360,12 +584,14 @@ class PokemonGame extends React.Component {
         return filteredPokemon;
     }
 
-    filterPokemonForGym() {
-        const gymNum = this.state.gymNum;
-        let filteredPokemon = [];
+    filterPokemonForGym(gymNum) {
+        if (gymNum > 8) {
+            return [];
+        }
 
+        let filteredPokemon = [];
         for (const pokemon of this.props.pokemon) {
-            if (pokemon.base_experience < gymExpMap.get(gymNum) && pokemon.base_experience > (gymExpMap.get(gymNum)-60)) {
+            if (pokemon.base_experience < gymExpMap.get(gymNum)) {  //  && pokemon.base_experience > (gymExpMap.get(gymNum)-80)
                 for (const type of pokemon.types) {
                     if (type.type.name === gymTypesMap.get(gymNum)) {
                         filteredPokemon.push(pokemon);
@@ -461,7 +687,13 @@ class PokemonGame extends React.Component {
             lastCaughtPokemon,
             lastEvolvedPokemon,
             currClickedCaughtPokemonId,
-            partyPokemon
+            partyPokemon,
+            partyPokeIndex,
+            gymPokemon,
+            gymPokeIndex,
+            gymPokeIsChaser,
+            gymStatus,
+            gymTimer
         } = this.state;
 
         const index = this.props.genNum === 5 ? 1 : 0;
@@ -549,7 +781,6 @@ class PokemonGame extends React.Component {
             );
         });
 
-        const gymPokemon = this.filterPokemonForGym();
         const gymPokemonList = [];
         gymPokemon.forEach((partyPoke) => {
             gymPokemonList.push(
@@ -635,6 +866,13 @@ class PokemonGame extends React.Component {
                                             </div> :
                                             null
                                         }
+                                        {
+                                            gymStatus !== null ?
+                                            <div>
+                                                <p>{gymStatus}</p>
+                                            </div> :
+                                            null
+                                        }
                                     </div>
 
                                     <div onKeyDown={ this.handleKeyDown } tabIndex="0" style={{"width": "70%", "height": "500px"}}>
@@ -667,7 +905,19 @@ class PokemonGame extends React.Component {
                         sceneNumber === 3 ?
                         (
                             <div>
-                                <h2>Gym {gymNum}</h2>
+                                <div style={{"width": "fit-content", "margin": "auto", "color": "red"}}>
+                                    {
+                                        gymPokemon.length > 0 ?
+                                        <div>
+                                            {
+                                                gymPokeIsChaser ?
+                                                <h2 style={{"color": "red"}}>Gym {gymNum}: Runner - Steps Left: {51-gymTimer}</h2> :
+                                                <h2 style={{"color": "green"}}>Gym {gymNum}: Chaser - Time Left: {10 - (Math.floor((Date.now()-gymTimer) / 1000))}</h2>
+                                            }
+                                        </div> :
+                                        <h2>You beat all of the gyms!</h2>
+                                    }
+                                </div>
 
                                 <button onClick={() => this.decrementScene(1)}>Back</button>
 
@@ -683,13 +933,21 @@ class PokemonGame extends React.Component {
                                         <div onKeyDown={ this.handleKeyDown } tabIndex="0" style={{"width": "70%", "height": "500px"}}>
                                             <img src={PokemonBattleImage} alt='pokemon' style={{"position": "absolute", "width": "66.7%", "height": "500px", "border": "solid 2px black"}} />
 
-                                            <div id="player" style={{"width": "60px", "position": "relative", "top": playerBattleTopPos, "left": playerBattleLeftPos}}>
-                                                <img src={primary.sprites.front_default} alt='pokemon' />
-                                            </div>
+                                            {
+                                                partyPokemon.length > 0 ?
+                                                <div id="gymPlayer" style={{"width": "60px", "position": "relative", "top": playerBattleTopPos, "left": playerBattleLeftPos}}>
+                                                    <img src={partyPokemon[partyPokeIndex].sprites.front_default} alt='pokemon' />
+                                                </div> :
+                                                null
+                                            }
                                             
-                                            <div id="gymPokemon" style={{"width": "60px", "position": "relative", "top": gymBattleTopPos, "left": gymBattleLeftPos}}>
-                                                <img src={gymPokemon[0].sprites.front_default} alt='pokemon' />
-                                            </div>
+                                            {
+                                                gymPokemon.length > 0 ?
+                                                <div id="gymPokemon" style={{"width": "60px", "position": "relative", "top": gymBattleTopPos, "left": gymBattleLeftPos}}>
+                                                    <img src={gymPokemon[gymPokeIndex].sprites.front_default} alt='pokemon' />
+                                                </div> :
+                                                null
+                                            }
                                         </div>
 
                                         <div style={{"width": "15%", "height": "500px", "display": "flex", "flexDirection": "column", "alignItems": "center", "overflowY": "auto"}}>
