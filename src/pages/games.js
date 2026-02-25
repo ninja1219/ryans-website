@@ -11,6 +11,7 @@ function Games() {
                 <button style={{"margin": "4px"}} onClick={() => { navigate("./tictactoe") }}>TicTacToe</button>
                 <button style={{"margin": "4px"}} onClick={() => { navigate("./pokedex") }}>Pokemon Games</button>
                 <button style={{"margin": "4px"}} onClick={() => { navigate("./minesweeper") }}>MineSweeper</button>
+                <button style={{"margin": "4px"}} onClick={() => { navigate("./puzzleGame") }}>PuzzleGame</button>
             </div>
 
             <h2>Game Ideas: </h2>

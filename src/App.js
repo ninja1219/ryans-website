@@ -13,7 +13,8 @@ import TicTacToe from "./pages/games/tictactoe";
 import Pokedex from "./pages/games/pokemon/pokedex";
 import Projects from "./pages/projects";
 import TodoList from "./pages/projects/todolist";
-import MineSweeper from "./pages/games/minesweeper"
+import MineSweeper from "./pages/games/minesweeper";
+import PuzzleGame from "./pages/games/puzzleGame";
  
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
         <Route path="/games/tictactoe" element={<TicTacToe />} />
         <Route path="/games/pokedex" element={<Pokedex />} />
         <Route path="/games/minesweeper" element={<MineSweeper />} />
+        <Route path="/games/puzzleGame" element={<PuzzleGame />} />
       </Routes>
     </Router>
   );
