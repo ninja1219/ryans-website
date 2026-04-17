@@ -1,6 +1,7 @@
 import React from 'react';
 import './pokedex.css';
 import PokemonGame from "./pokemonGame";
+import TierList from "./tierList";
 import Pokemon from "./pokemon";
 
 class Generation extends React.Component {
@@ -14,8 +15,12 @@ class Generation extends React.Component {
             triviaGuess: "",
             showTriviaPokeName: false,
             pokemonGame: false,
+            tierList: false,
             loading: true
         };
+
+        this.evolutionStageCache = new Map();
+        this.evolutionChainCache = new Map();
 
         this.handleChange = this.handleChange.bind(this);
     }
@@ -30,15 +35,99 @@ class Generation extends React.Component {
         const offsets = [0, 0, 151, 251, 386, 493, 649, 721, 809, 905];
         const limits = [1025, 151, 100, 135, 107, 156, 72, 88, 96, 120];
 
-        const url = "https://pokeapi.co/api/v2/pokemon?offset=" + offsets[genNum] + "&limit=" + limits[genNum];
+        this.setState({
+            loading: true,
+            pokemon: [],
+            currPokeData: null
+        });
+
+        const url =
+            "https://pokeapi.co/api/v2/pokemon?offset=" +
+            offsets[genNum] +
+            "&limit=" +
+            limits[genNum];
+
         fetch(url)
-            .then(response => response.json())
-            .then(allPokemon => {
-                const promises = allPokemon.results.map(pokemon => this.fetchPokemon(pokemon));
-                Promise.all(promises).then(allData => {
-                    this.setState({ pokemon: allData });
+            .then((response) => response.json())
+            .then((allPokemon) => {
+                const pokemonPromises = allPokemon.results.map((pokemon) =>
+                    this.fetchPokemon(pokemon)
+                );
+
+                Promise.all(pokemonPromises).then((allData) => {
+                    const enrichedPromises = allData.map((pokemon) =>
+                        this.fetchEvolutionStage(pokemon).then((evolutionStage) => ({
+                            ...pokemon,
+                            evolutionStage,
+                        }))
+                    );
+
+                    Promise.all(enrichedPromises).then((enrichedPokemon) => {
+                        this.setState({ 
+                            pokemon: enrichedPokemon,
+                            loading: false
+                        });
+                    });
+                });
+            })
+            .catch(() => {
+                this.setState({
+                    pokemon: [],
+                    loading: false
                 });
             });
+    }
+
+    fetchEvolutionStage(pokemon) {
+        if (!pokemon.species || !pokemon.species.url) {
+            return Promise.resolve("unknown");
+        }
+
+        if (this.evolutionStageCache.has(pokemon.name)) {
+            return Promise.resolve(this.evolutionStageCache.get(pokemon.name));
+        }
+
+        return fetch(pokemon.species.url)
+            .then((response) => response.json())
+            .then((speciesData) => {
+                const evolutionChainUrl = speciesData.evolution_chain?.url;
+
+                if (!evolutionChainUrl) {
+                    this.evolutionStageCache.set(pokemon.name, "unknown");
+                    return "unknown";
+                }
+
+                if (this.evolutionChainCache.has(evolutionChainUrl)) {
+                    const stageMap = this.evolutionChainCache.get(evolutionChainUrl);
+                    const stage = stageMap[pokemon.name] || "unknown";
+                    this.evolutionStageCache.set(pokemon.name, stage);
+                    return stage;
+                }
+
+                return fetch(evolutionChainUrl)
+                    .then((response) => response.json())
+                    .then((evolutionData) => {
+                        const stageMap = {};
+                        this.buildEvolutionStageMap(evolutionData.chain, 1, stageMap);
+
+                        this.evolutionChainCache.set(evolutionChainUrl, stageMap);
+
+                        Object.keys(stageMap).forEach((name) => {
+                            this.evolutionStageCache.set(name, stageMap[name]);
+                        });
+
+                        return stageMap[pokemon.name] || "unknown";
+                    });
+            })
+            .catch(() => "unknown");
+    }
+
+    buildEvolutionStageMap(chainNode, stage, stageMap) {
+        stageMap[chainNode.species.name] = stage;
+
+        chainNode.evolves_to.forEach((nextEvolution) => {
+            this.buildEvolutionStageMap(nextEvolution, stage + 1, stageMap);
+        });
     }
 
     componentDidMount() {
@@ -47,6 +136,11 @@ class Generation extends React.Component {
 
     componentDidUpdate(prevProps) {
         if (this.props.genNum !== prevProps.genNum) {
+            this.setState({
+                triviaGame: false,
+                pokemonGame: false,
+                tierList: false
+            });
             this.fetchGen(this.props.genNum);
         }
     }
@@ -86,7 +180,8 @@ class Generation extends React.Component {
     exitGame() {
         this.setState({
             triviaGame: false,
-            pokemonGame: false
+            pokemonGame: false,
+            tierList: false
         });
     }
 
@@ -104,6 +199,12 @@ class Generation extends React.Component {
         });
     }
 
+    loadTierListPage() {
+        this.setState({
+            tierList: true
+        });
+    }
+
     render() {
         const {
             pokemon, 
@@ -113,6 +214,7 @@ class Generation extends React.Component {
             triviaGuess, 
             showTriviaPokeName, 
             pokemonGame,
+            tierList,
             loading
         } = this.state;
 
@@ -125,12 +227,6 @@ class Generation extends React.Component {
                 </div>
             );
         });
-
-        if (loading && links.length > 0) {
-            this.setState({
-                loading: false
-            });
-        }
 
         return (
             <div>
@@ -165,26 +261,35 @@ class Generation extends React.Component {
                                 <PokemonGame pokemon={pokemon} genNum={this.props.genNum}/>
                             </div>
                         ) :
-                        (
-                            <div>
-                                {
-                                    !loading ?
-                                    <div style={{"width": "250px"}}>
-                                        <button onClick={ () => this.loadTriviaGame() } style={{"marginBottom": "20px"}}>Trivia Game</button>
-                                        <button onClick={ () => this.loadPokemonGame() } style={{"marginBottom": "20px", "float": "right"}}>Pokemon Game</button>
-                                    </div> :
-                                    null
-                                }
-                                <div className="grouping" id="pokedex-grouping">
-                                    <div id="pokemon-list">
-                                        {links}
-                                    </div>
+                        ( tierList ?
+                            (
+                                <div>
+                                    <button onClick={ () => this.exitGame() }>Exit Game</button>
+                                    <TierList pokemon={pokemon} genNum={this.props.genNum}/>
+                                </div>
+                            ) :
+                            (
+                                <div>
+                                    {
+                                        !loading ?
+                                        <div style={{ width: "500px", display: "flex", gap: "20px", marginBottom: "20px" }}>
+                                            <button onClick={() => this.loadTriviaGame()}>Trivia Game</button>
+                                            <button onClick={() => this.loadPokemonGame()}>Pokemon Game</button>
+                                            <button onClick={() => this.loadTierListPage()}>Tier List</button>
+                                        </div> :
+                                        null
+                                    }
+                                    <div className="grouping" id="pokedex-grouping">
+                                        <div id="pokemon-list">
+                                            {links}
+                                        </div>
 
-                                    <div id="selected-pokemon">
-                                        { currPokeData !== null ? <Pokemon pokeData={currPokeData} trivia={false}/> : null }
+                                        <div id="selected-pokemon">
+                                            { currPokeData !== null ? <Pokemon pokeData={currPokeData} trivia={false}/> : null }
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )
                         )
                     )
                 }
