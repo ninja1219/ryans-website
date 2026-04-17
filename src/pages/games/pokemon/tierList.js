@@ -1,5 +1,6 @@
 import React from 'react';
-import Pokemon from "./pokemon";
+
+// TODO: Add ability to remove tiers (can't have less than 1 though), and to save tier list as json (with ability to reload saved tier list)
 
 const DEFAULT_TIERS = [
   { id: "s", name: "S Tier", color: "#ff6b6b" },
@@ -69,6 +70,27 @@ class TierList extends React.Component {
         }));
     };
 
+    handleRemoveTier = (tierId) => {
+        if (this.state.tiers.length <= 1) {
+            return;
+        }
+
+        this.setState((prevState) => {
+            const updatedAssignments = { ...prevState.tierAssignments };
+
+            Object.keys(updatedAssignments).forEach((pokemonId) => {
+                if (updatedAssignments[pokemonId] === tierId) {
+                    updatedAssignments[pokemonId] = null;
+                }
+            });
+
+            return {
+                tiers: prevState.tiers.filter((tier) => tier.id !== tierId),
+                tierAssignments: updatedAssignments,
+            };
+        });
+    };
+
     handleAssignPokemonToTier = (pokemonId, tierId) => {
         this.setState((prevState) => ({
             tierAssignments: {
@@ -86,6 +108,63 @@ class TierList extends React.Component {
             },
         }));
     };
+
+    handleExportTierList = () => {
+        const tierListData = {
+            tiers: this.state.tiers,
+            tierAssignments: this.state.tierAssignments,
+            exportedAt: new Date().toISOString(),
+        };
+
+        const blob = new Blob([JSON.stringify(tierListData, null, 2)], {
+            type: "application/json",
+        });
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "pokemon-tier-list.json";
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    handleImportTierList = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+
+        reader.onload = (loadEvent) => {
+            try {
+                const importedList = JSON.parse(loadEvent.target.result);
+
+                const normalizedTiers = this.normalizeImportedTiers(importedList.tiers);
+                if (!normalizedTiers) {
+                    console.error("Imported tier list has invalid tiers.");
+                    return;
+                }
+
+                const normalizedAssignments = this.normalizeImportedAssignments(
+                    importedList.tierAssignments,
+                    normalizedTiers
+                );
+
+                const completeAssignments = this.buildCompleteAssignments(
+                    normalizedAssignments
+                );
+
+                this.setState({
+                    tiers: normalizedTiers,
+                    tierAssignments: completeAssignments,
+                });
+            } catch (error) {
+                console.error("Invalid tier list JSON file");
+            }
+        };
+
+        reader.readAsText(file);
+    };
+
 
     getPokemonTypes = (pokemon) => {
         return (pokemon.types || []).map((typeObj) => {
@@ -144,6 +223,23 @@ class TierList extends React.Component {
         return "9";
     };
 
+    getUnassignedPokemon = () => {
+        const { pokemonMap, tierAssignments } = this.state;
+
+        return Array.from(pokemonMap.values()).filter((pokemon) => {
+            const isUnassigned = !tierAssignments[pokemon.id];
+            return isUnassigned && this.passesFilters(pokemon);
+        });
+    };
+
+    getTierPokemon = (tierId) => {
+        const { pokemonMap, tierAssignments } = this.state;
+
+        return Array.from(pokemonMap.values()).filter(
+            (pokemon) => tierAssignments[pokemon.id] === tierId
+        );
+    };
+
     passesFilters = (pokemon) => {
         const {
             searchText,
@@ -175,23 +271,87 @@ class TierList extends React.Component {
         );
     };
 
-    getUnassignedPokemon = () => {
-        const { pokemonMap, tierAssignments } = this.state;
+    normalizeImportedTiers = (tiers) => {
+        if (!Array.isArray(tiers) || tiers.length === 0) {
+            return null;
+        }
 
-        return Array.from(pokemonMap.values()).filter((pokemon) => {
-            const isUnassigned = !tierAssignments[pokemon.id];
-            return isUnassigned && this.passesFilters(pokemon);
-        });
+        const normalizedTiers = [];
+        const usedIds = new Set();
+
+        for (let index = 0; index < tiers.length; index += 1) {
+            const tier = tiers[index];
+            const rawName = typeof tier?.name === "string" ? tier.name.trim() : "";
+
+            if (!rawName) {
+                return null;
+            }
+
+            let id =
+            typeof tier?.id === "string" && tier.id.trim()
+                ? tier.id.trim()
+                : `imported-tier-${index + 1}`;
+
+            while (usedIds.has(id)) {
+                id = `${id}-${index + 1}`;
+            }
+
+            usedIds.add(id);
+
+            normalizedTiers.push({
+            id,
+            name: rawName,
+            color:
+                typeof tier?.color === "string" && tier.color.trim()
+                ? tier.color
+                : "#d9e2f2",
+            });
+        }
+
+        return normalizedTiers;
     };
 
-    getTierPokemon = (tierId) => {
-        const { pokemonMap, tierAssignments } = this.state;
+    normalizeImportedAssignments = (tierAssignments, tiers) => {
+        const normalizedAssignments = {};
+        const validTierIds = new Set(tiers.map((tier) => tier.id));
+        const validPokemonIds = new Set(Array.from(this.state.pokemonMap.keys()).map(String));
 
-        return Array.from(pokemonMap.values()).filter((pokemon) => {
-            return (
-                tierAssignments[pokemon.id] === tierId && this.passesFilters(pokemon)
-            );
+        if (!tierAssignments || typeof tierAssignments !== "object") {
+            return normalizedAssignments;
+        }
+
+        Object.keys(tierAssignments).forEach((pokemonId) => {
+            const assignedTierId = tierAssignments[pokemonId];
+
+            if (!validPokemonIds.has(String(pokemonId))) {
+                return;
+            }
+
+            if (assignedTierId === null) {
+                normalizedAssignments[pokemonId] = null;
+                return;
+            }
+
+            if (typeof assignedTierId === "string" && validTierIds.has(assignedTierId)) {
+                normalizedAssignments[pokemonId] = assignedTierId;
+            }
         });
+
+        return normalizedAssignments;
+    };
+
+    buildCompleteAssignments = (normalizedAssignments) => {
+        const completeAssignments = {};
+
+        Array.from(this.state.pokemonMap.keys()).forEach((pokemonId) => {
+            const key = String(pokemonId);
+            completeAssignments[key] =
+            Object.prototype.hasOwnProperty.call(normalizedAssignments, key)
+                ? normalizedAssignments[key]
+                : null;
+        });
+
+        return completeAssignments;
     };
 
     renderPokemonCard = (pokemon, showTierPicker = true) => {
@@ -308,17 +468,26 @@ class TierList extends React.Component {
             >
                 <div
                     style={{
-                        width: "120px",
+                        width: "140px",
                         backgroundColor: tier.color,
                         display: "flex",
+                        flexDirection: "column",
                         alignItems: "center",
                         justifyContent: "center",
                         fontWeight: "bold",
                         fontSize: "22px",
                         padding: "12px",
-                }}
+                        gap: "10px",
+                    }}
                 >
-                    {tier.name}
+                    <div>{tier.name}</div>
+                    <button
+                        onClick={() => this.handleRemoveTier(tier.id)}
+                        disabled={this.state.tiers.length <= 1}
+                        style={{ fontSize: "12px" }}
+                    >
+                        Remove
+                    </button>
                 </div>
 
                 <div
@@ -364,6 +533,14 @@ class TierList extends React.Component {
                         onChange={(event) => this.setState({ newTierName: event.target.value })}
                     />
                     <button onClick={this.handleAddTier}>Add Tier</button>
+
+                    <button onClick={this.handleExportTierList}>Export JSON</button>
+
+                    <input
+                        type="file"
+                        accept=".json"
+                        onChange={this.handleImportTierList}
+                    />
                 </div>
 
                 <div style={{ marginBottom: "32px" }}>
@@ -386,7 +563,7 @@ class TierList extends React.Component {
                         value={this.state.searchText}
                         onChange={(event) => this.setState({ searchText: event.target.value })}
                     />
-                    
+
                     <select
                         value={this.state.selectedType}
                         onChange={(event) =>
