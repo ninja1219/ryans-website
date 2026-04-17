@@ -364,13 +364,6 @@ class TierList extends React.Component {
                         onChange={(event) => this.setState({ newTierName: event.target.value })}
                     />
                     <button onClick={this.handleAddTier}>Add Tier</button>
-
-                    <input
-                        type="text"
-                        placeholder="Search Pokemon"
-                        value={this.state.searchText}
-                        onChange={(event) => this.setState({ searchText: event.target.value })}
-                    />
                 </div>
 
                 <div style={{ marginBottom: "32px" }}>
@@ -387,6 +380,13 @@ class TierList extends React.Component {
                         flexWrap: "wrap",
                     }}
                 >
+                    <input
+                        type="text"
+                        placeholder="Search Pokemon"
+                        value={this.state.searchText}
+                        onChange={(event) => this.setState({ searchText: event.target.value })}
+                    />
+                    
                     <select
                         value={this.state.selectedType}
                         onChange={(event) =>
