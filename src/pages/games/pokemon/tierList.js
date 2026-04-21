@@ -398,7 +398,7 @@ class TierList extends React.Component {
         return completeAssignments;
     };
 
-        renderFilterChips = (label, values, selectedValues, stateKey, getDisplayLabel) => {
+    renderFilterChips = (label, values, selectedValues, stateKey, getDisplayLabel) => {
         return (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 <div style={{ fontWeight: "bold", fontSize: "14px" }}>{label}</div>
@@ -580,6 +580,7 @@ class TierList extends React.Component {
                     }}
                 >
                     <div>{tier.name}</div>
+                    <div>({pokemonInTier.length})</div>
                     <button
                         onClick={() => this.handleRemoveTier(tier.id)}
                         disabled={this.state.tiers.length <= 1}
