@@ -1,34 +1,45 @@
 import React from 'react';
 
-// TODO: Add ability to remove tiers (can't have less than 1 though), and to save tier list as json (with ability to reload saved tier list)
+const TIER_COLORS = [
+    "#f28482",  // Top tier
+    "#f6bd60",
+    "#f7ede2",
+    "#84a59d",
+    "#90dbf4",
+    "#a9def9",
+    "#cdb4db",
+    "#d8e2dc",
+    "#b8c0c8",
+    "#adb5bd"  // Bottom tier
+];
 
 const DEFAULT_TIERS = [
-  { id: "s", name: "S Tier", color: "#ff6b6b" },
-  { id: "a", name: "A Tier", color: "#f7b267" },
-  { id: "b", name: "B Tier", color: "#ffd166" },
-  { id: "c", name: "C Tier", color: "#7bd389" },
+  { id: "s", name: "S Tier", color: TIER_COLORS[0] },
+  { id: "a", name: "A Tier", color: TIER_COLORS[1] },
+  { id: "b", name: "B Tier", color: TIER_COLORS[2] },
+  { id: "c", name: "C Tier", color: TIER_COLORS[3] }
 ];
 
 const TYPE_COLORS = {
-    normal: '#facd4b',
-    fire: '#f0776a',
-    water: '#58abf6',
-    electric: '#facd4b',
-    grass: '#64dbb2',
-    ice: '#58abf6',
-    fighting: '#ca8179',
-    poison: '#9f5bba',
-    ground: '#ca8179',
-    flying: '#58abf6',
-    psychic: '#9f5bba',
-    bug: '#64dbb2',
-    rock: '#ca8179',
-    ghost: '#9f5bba',
-    dragon: '#f0776a',
-    dark: '#9f5bba',
-    steel: '#facd4b',
-    fairy: '#64dbb2'
-}
+	normal: '#A8A77A',
+	fire: '#EE8130',
+	water: '#6390F0',
+	electric: '#F7D02C',
+	grass: '#7AC74C',
+	ice: '#96D9D6',
+	fighting: '#C22E28',
+	poison: '#A33EA1',
+	ground: '#E2BF65',
+	flying: '#A98FF3',
+	psychic: '#F95587',
+	bug: '#A6B91A',
+	rock: '#B6A136',
+	ghost: '#735797',
+	dragon: '#6F35FC',
+	dark: '#705746',
+	steel: '#B7B7CE',
+	fairy: '#D685AD'
+};
 
 class TierList extends React.Component {
     constructor(props) {
@@ -47,9 +58,9 @@ class TierList extends React.Component {
             newTierName: "",
             tierAssignments,
             searchText: "",
-            selectedType: "all",
-            selectedGeneration: "all",
-            selectedEvolutionStage: "all"
+            selectedTypes: [],
+            selectedGenerations: [],
+            selectedEvolutionStages: []
         };
     }
 
@@ -57,17 +68,21 @@ class TierList extends React.Component {
         const trimmedName = this.state.newTierName.trim();
         if (!trimmedName) return;
 
-        this.setState((prevState) => ({
-            tiers: [
-                ...prevState.tiers,
-                {
-                    id: `tier-${Date.now()}`,
-                    name: trimmedName,
-                    color: "#d9e2f2",
-                },
-            ],
-            newTierName: "",
-        }));
+        this.setState((prevState) => {
+            const newTierIndex = prevState.tiers.length;
+
+            return {
+                tiers: [
+                    ...prevState.tiers,
+                    {
+                        id: `tier-${Date.now()}`,
+                        name: trimmedName,
+                        color: this.getTierColorByIndex(newTierIndex),
+                    },
+                ],
+                newTierName: "",
+            };
+        });
     };
 
     handleRemoveTier = (tierId) => {
@@ -84,8 +99,15 @@ class TierList extends React.Component {
                 }
             });
 
+            const remainingTiers = prevState.tiers
+                .filter((tier) => tier.id !== tierId)
+                .map((tier, index) => ({
+                    ...tier,
+                    color: this.getTierColorByIndex(index),
+            }));
+
             return {
-                tiers: prevState.tiers.filter((tier) => tier.id !== tierId),
+                tiers: remainingTiers,
                 tierAssignments: updatedAssignments,
             };
         });
@@ -165,7 +187,6 @@ class TierList extends React.Component {
         reader.readAsText(file);
     };
 
-
     getPokemonTypes = (pokemon) => {
         return (pokemon.types || []).map((typeObj) => {
             if (typeof typeObj === "string") return typeObj;
@@ -181,6 +202,10 @@ class TierList extends React.Component {
     getCardBackgroundColor = (pokemon) => {
         const mainType = this.getMainType(pokemon);
         return TYPE_COLORS[mainType] || "#e9ecef";
+    };
+
+    getTierColorByIndex = (index) => {
+        return TIER_COLORS[index] || TIER_COLORS[TIER_COLORS.length - 1];
     };
 
     getEvolutionStage = (pokemon) => {
@@ -243,9 +268,9 @@ class TierList extends React.Component {
     passesFilters = (pokemon) => {
         const {
             searchText,
-            selectedType,
-            selectedGeneration,
-            selectedEvolutionStage,
+            selectedTypes,
+            selectedGenerations,
+            selectedEvolutionStages,
         } = this.state;
 
         const lowerSearch = searchText.toLowerCase();
@@ -255,13 +280,17 @@ class TierList extends React.Component {
 
         const matchesSearch =
             !searchText || pokemon.name.toLowerCase().includes(lowerSearch);
+
         const matchesType =
-            selectedType === "all" || mainType === selectedType;
+            selectedTypes.length === 0 || selectedTypes.includes(mainType);
+
         const matchesGeneration =
-            selectedGeneration === "all" || generation === selectedGeneration;
+            selectedGenerations.length === 0 ||
+            selectedGenerations.includes(String(generation));
+
         const matchesEvolutionStage =
-            selectedEvolutionStage === "all" ||
-            evolutionStage === selectedEvolutionStage;
+            selectedEvolutionStages.length === 0 ||
+            selectedEvolutionStages.includes(String(evolutionStage));
 
         return (
             matchesSearch &&
@@ -269,6 +298,24 @@ class TierList extends React.Component {
             matchesGeneration &&
             matchesEvolutionStage
         );
+    };
+
+    toggleFilterValue = (stateKey, value) => {
+        this.setState((prevState) => {
+            const currentValues = prevState[stateKey];
+
+            return {
+            [stateKey]: currentValues.includes(value)
+                ? currentValues.filter((item) => item !== value)
+                : [...currentValues, value],
+            };
+        });
+    };
+
+    clearFilterGroup = (stateKey) => {
+        this.setState({
+            [stateKey]: [],
+        });
     };
 
     normalizeImportedTiers = (tiers) => {
@@ -299,12 +346,9 @@ class TierList extends React.Component {
             usedIds.add(id);
 
             normalizedTiers.push({
-            id,
-            name: rawName,
-            color:
-                typeof tier?.color === "string" && tier.color.trim()
-                ? tier.color
-                : "#d9e2f2",
+                id,
+                name: rawName,
+                color: this.getTierColorByIndex(index),
             });
         }
 
@@ -352,6 +396,61 @@ class TierList extends React.Component {
         });
 
         return completeAssignments;
+    };
+
+        renderFilterChips = (label, values, selectedValues, stateKey, getDisplayLabel) => {
+        return (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ fontWeight: "bold", fontSize: "14px" }}>{label}</div>
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                    {values.map((value) => {
+                        const isSelected = selectedValues.includes(value);
+                        const isTypeFilter = stateKey === "selectedTypes";
+
+                        return (
+                            <button
+                                key={value}
+                                type="button"
+                                onClick={() => this.toggleFilterValue(stateKey, value)}
+                                style={{
+                                    padding: "6px 10px",
+                                    borderRadius: "999px",
+                                    border: isSelected ? "2px solid #222" : "1px solid #ccc",
+                                    backgroundColor: isTypeFilter
+                                        ? TYPE_COLORS[value]
+                                        : (isSelected ? "#222" : "#fff"),
+                                    color: isTypeFilter
+                                        ? "#222"
+                                        : (isSelected ? "#fff" : "#222"),
+                                    cursor: "pointer",
+                                    fontSize: "12px",
+                                    opacity: isSelected ? 1 : 0.85,
+                                }}
+                            >
+                                {getDisplayLabel ? getDisplayLabel(value) : value}
+                            </button>
+                        );
+                    })}
+
+                    <button
+                        type="button"
+                        onClick={() => this.clearFilterGroup(stateKey)}
+                        style={{
+                            padding: "6px 10px",
+                            borderRadius: "999px",
+                            border: "1px dashed #999",
+                            backgroundColor: "#f7f7f7",
+                            color: "#444",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                        }}
+                    >
+                        Clear
+                    </button>
+                </div>
+            </div>
+        );
     };
 
     renderPokemonCard = (pokemon, showTierPicker = true) => {
@@ -551,10 +650,11 @@ class TierList extends React.Component {
                 <div
                     style={{
                         display: "flex",
+                        flexDirection: "column",
                         gap: "12px",
                         marginBottom: "24px",
-                        alignItems: "center",
-                        flexWrap: "wrap",
+                        marginLeft: "24px",
+                        alignItems: "flex-start"
                     }}
                 >
                     <input
@@ -564,51 +664,29 @@ class TierList extends React.Component {
                         onChange={(event) => this.setState({ searchText: event.target.value })}
                     />
 
-                    <select
-                        value={this.state.selectedType}
-                        onChange={(event) =>
-                            this.setState({ selectedType: event.target.value })
-                        }
-                    >
-                        <option value="all">All Types</option>
-                        {Object.keys(TYPE_COLORS).map((type) => (
-                            <option key={type} value={type}>
-                                {type.charAt(0).toUpperCase() + type.slice(1)}
-                            </option>
-                        ))}
-                    </select>
+                    {this.renderFilterChips(
+                        "Types",
+                        Object.keys(TYPE_COLORS),
+                        this.state.selectedTypes,
+                        "selectedTypes",
+                        (type) => type.charAt(0).toUpperCase() + type.slice(1)
+                    )}
 
-                    <select
-                        value={this.state.selectedGeneration}
-                        onChange={(event) =>
-                            this.setState({ selectedGeneration: event.target.value })
-                        }
-                    >
-                        <option value="all">All Generations</option>
-                        <option value="1">Gen 1</option>
-                        <option value="2">Gen 2</option>
-                        <option value="3">Gen 3</option>
-                        <option value="4">Gen 4</option>
-                        <option value="5">Gen 5</option>
-                        <option value="6">Gen 6</option>
-                        <option value="7">Gen 7</option>
-                        <option value="8">Gen 8</option>
-                        <option value="9">Gen 9</option>
-                    </select>
+                    {this.renderFilterChips(
+                        "Generations",
+                        ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
+                        this.state.selectedGenerations,
+                        "selectedGenerations",
+                        (generation) => `Gen ${generation}`
+                    )}
 
-                    <select
-                        value={this.state.selectedEvolutionStage}
-                        onChange={(event) =>
-                            this.setState({ selectedEvolutionStage: event.target.value })
-                        }
-                        
-                    >
-                        <option value="all">All Evolution Stages</option>
-                        <option value="1">Stage 1</option>
-                        <option value="2">Stage 2</option>
-                        <option value="3">Stage 3</option>
-                        <option value="unknown">Unknown</option>
-                    </select>
+                    {this.renderFilterChips(
+                        "Evolution Stages",
+                        ["1", "2", "3", "unknown"],
+                        this.state.selectedEvolutionStages,
+                        "selectedEvolutionStages",
+                        (stage) => (stage === "unknown" ? "Unknown" : `Stage ${stage}`)
+                    )}
                 </div>
 
                 <h2>Available Pokemon ({unassignedPokemon.length})</h2>
