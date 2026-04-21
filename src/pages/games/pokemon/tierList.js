@@ -45,15 +45,15 @@ class TierList extends React.Component {
     constructor(props) {
         super(props);
 
-        let pokeMap = new Map();
+        let pokemonMap = new Map();
         const tierAssignments = {};
         for (const pokemon of this.props.pokemon) {
-            pokeMap.set(pokemon.id, pokemon);
+            pokemonMap.set(pokemon.id, pokemon);
             tierAssignments[pokemon.id] = null;
         }
 
         this.state = {
-            pokemonMap: pokeMap,
+            pokemonMap,
             tiers: DEFAULT_TIERS,
             newTierName: "",
             tierAssignments,
