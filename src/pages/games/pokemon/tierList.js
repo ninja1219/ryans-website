@@ -216,7 +216,19 @@ class TierList extends React.Component {
         const stat = (pokemon.stats || []).find(
             (entry) => entry.stat?.name === statName
         );
-        return stat ? stat.base_stat : "-";
+
+        return stat ? stat.base_stat : 0;
+    };
+
+    getBaseStatTotal = (pokemon) => {
+        return (
+            this.getStatValue(pokemon, "hp") +
+            this.getStatValue(pokemon, "attack") +
+            this.getStatValue(pokemon, "defense") +
+            this.getStatValue(pokemon, "special-attack") +
+            this.getStatValue(pokemon, "special-defense") +
+            this.getStatValue(pokemon, "speed")
+        );
     };
 
     getPokemonSprite = (pokemon) => {
@@ -274,7 +286,7 @@ class TierList extends React.Component {
         } = this.state;
 
         const lowerSearch = searchText.toLowerCase();
-        const mainType = this.getMainType(pokemon);
+        const pokemonTypes = this.getPokemonTypes(pokemon);
         const generation = this.getGeneration(pokemon);
         const evolutionStage = this.getEvolutionStage(pokemon);
 
@@ -282,7 +294,8 @@ class TierList extends React.Component {
             !searchText || pokemon.name.toLowerCase().includes(lowerSearch);
 
         const matchesType =
-            selectedTypes.length === 0 || selectedTypes.includes(mainType);
+            selectedTypes.length === 0 ||
+            pokemonTypes.some((type) => selectedTypes.includes(type));
 
         const matchesGeneration =
             selectedGenerations.length === 0 ||
@@ -462,8 +475,8 @@ class TierList extends React.Component {
             <div
                 key={pokemon.id}
                 style={{
-                    width: "140px",
-                    minHeight: "170px",
+                    width: "150px",
+                    minHeight: "160px",
                     border: "1px solid #d9d9d9",
                     borderRadius: "10px",
                     padding: "10px",
@@ -479,13 +492,13 @@ class TierList extends React.Component {
                         <img
                             src={sprite}
                             alt={pokemon.name}
-                            style={{ width: "72px", height: "72px", objectFit: "contain" }}
+                            style={{ width: "140px", height: "140px", objectFit: "contain" }}
                         />
                     ) : (
                         <div
                             style={{
-                                width: "72px",
-                                height: "72px",
+                                width: "140px",
+                                height: "140px",
                                 backgroundColor: "#f3f3f3",
                                 borderRadius: "8px",
                             }}
@@ -514,22 +527,19 @@ class TierList extends React.Component {
                 </div>
 
                 <div style={{ fontSize: "11px", lineHeight: "1.4" }}>
-                    <div>HP: {this.getStatValue(pokemon, "hp")}</div>
-                    <div>Atk: {this.getStatValue(pokemon, "attack")}</div>
-                    <div>Spd: {this.getStatValue(pokemon, "speed")}</div>
+                    <div>BST: {this.getBaseStatTotal(pokemon)}</div>
                     <div>Stage: {this.getEvolutionStage(pokemon)}</div>
                 </div>
 
-                {showTierPicker ? (
+                <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
                     <select
-                        defaultValue=""
+                        value={this.state.tierAssignments[pokemon.id] || ""}
                         onChange={(event) =>
                             this.handleAssignPokemonToTier(pokemon.id, event.target.value)
                         }
-                        style={{ marginTop: "auto" }}
                     >
                         <option value="" disabled>
-                            Move to tier
+                            {showTierPicker ? "Move to tier" : "Change tier"}
                         </option>
                         {this.state.tiers.map((tier) => (
                             <option key={tier.id} value={tier.id}>
@@ -537,14 +547,15 @@ class TierList extends React.Component {
                             </option>
                         ))}
                     </select>
-                ) : (
-                    <button
-                        onClick={() => this.handleRemoveFromTier(pokemon.id)}
-                        style={{ marginTop: "auto" }}
-                    >
-                        Remove
-                    </button>
-                )}
+
+                    {!showTierPicker ? (
+                        <button
+                            onClick={() => this.handleRemoveFromTier(pokemon.id)}
+                        >
+                            Remove
+                        </button>
+                    ) : null}
+                </div>
             </div>
         );
     };
