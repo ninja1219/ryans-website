@@ -475,7 +475,7 @@ class TierList extends React.Component {
             <div
                 key={pokemon.id}
                 style={{
-                    width: "150px",
+                    width: "160px",
                     minHeight: "160px",
                     border: "1px solid #d9d9d9",
                     borderRadius: "10px",
@@ -492,7 +492,7 @@ class TierList extends React.Component {
                         <img
                             src={sprite}
                             alt={pokemon.name}
-                            style={{ width: "140px", height: "140px", objectFit: "contain" }}
+                            style={{ width: "160px", height: "160px", objectFit: "contain" }}
                         />
                     ) : (
                         <div
